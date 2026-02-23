@@ -1,0 +1,148 @@
+// ================================================
+// Menu Routes
+// ================================================
+import { Hono } from 'hono'
+import { getAvailabilityStatus } from '../lib/forecast'
+
+type Bindings = { DB: D1Database }
+
+const menu = new Hono<{ Bindings: Bindings }>()
+
+// Get full menu with today's availability
+menu.get('/', async (c) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const timeSlot = c.req.query('slot') || 'lunch'
+
+    const { results: items } = await c.env.DB.prepare(`
+      SELECT mi.id, mi.name, mi.description, mi.price, mi.preparation_time_minutes,
+             mi.daily_capacity, mi.image_url, mi.is_active,
+             c.name as category_name, c.id as category_id,
+             COALESCE(ma.quantity_prepared, 0) as quantity_prepared,
+             COALESCE(ma.quantity_sold, 0) as quantity_sold,
+             COALESCE(ma.quantity_remaining, mi.daily_capacity) as quantity_remaining,
+             COALESCE(ma.status, 'available') as status
+      FROM menu_items mi
+      JOIN categories c ON mi.category_id = c.id
+      LEFT JOIN menu_availability ma ON ma.menu_item_id = mi.id 
+        AND ma.date = ? AND ma.time_slot = ?
+      WHERE mi.is_active = 1
+      ORDER BY c.display_order, mi.name
+    `).bind(today, timeSlot).all()
+
+    // Group by category
+    const grouped: Record<string, any> = {}
+    for (const item of items as any[]) {
+      if (!grouped[item.category_name]) {
+        grouped[item.category_name] = { id: item.category_id, name: item.category_name, items: [] }
+      }
+      grouped[item.category_name].items.push({
+        ...item,
+        availability_badge: item.status === 'sold_out' ? 'Sold Out' 
+          : item.status === 'running_low' ? 'Running Low' : 'Available',
+        badge_color: item.status === 'sold_out' ? 'red' 
+          : item.status === 'running_low' ? 'yellow' : 'green',
+      })
+    }
+
+    return c.json({ categories: Object.values(grouped), date: today, timeSlot })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Get single item detail
+menu.get('/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    const today = new Date().toISOString().split('T')[0]
+    const item = await c.env.DB.prepare(`
+      SELECT mi.*, c.name as category_name,
+             ma.quantity_prepared, ma.quantity_sold, ma.quantity_remaining, ma.status,
+             df.predicted_quantity, df.confidence_score
+      FROM menu_items mi
+      JOIN categories c ON mi.category_id = c.id
+      LEFT JOIN menu_availability ma ON ma.menu_item_id = mi.id AND ma.date = ? AND ma.time_slot = 'lunch'
+      LEFT JOIN demand_forecasts df ON df.menu_item_id = mi.id AND df.forecast_date = ? AND df.time_slot = 'lunch'
+      WHERE mi.id = ?
+    `).bind(today, today, id).first()
+    if (!item) return c.json({ error: 'Item not found' }, 404)
+    return c.json({ item })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Update availability (kitchen staff)
+menu.put('/:id/availability', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    const { date, timeSlot, quantitySold, quantityPrepared } = await c.req.json()
+    const today = date || new Date().toISOString().split('T')[0]
+    const slot = timeSlot || 'lunch'
+
+    // Get existing record
+    const existing = await c.env.DB.prepare(
+      'SELECT * FROM menu_availability WHERE menu_item_id = ? AND date = ? AND time_slot = ?'
+    ).bind(id, today, slot).first<any>()
+
+    const newSold = quantitySold ?? existing?.quantity_sold ?? 0
+    const newPrepared = quantityPrepared ?? existing?.quantity_prepared ?? 0
+    const remaining = Math.max(0, newPrepared - newSold)
+
+    const item = await c.env.DB.prepare('SELECT daily_capacity FROM menu_items WHERE id = ?').bind(id).first<any>()
+    const status = getAvailabilityStatus(remaining, newPrepared || item?.daily_capacity || 50)
+
+    await c.env.DB.prepare(`
+      INSERT INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(menu_item_id, date, time_slot) DO UPDATE SET
+        quantity_prepared = excluded.quantity_prepared,
+        quantity_sold = excluded.quantity_sold,
+        quantity_remaining = excluded.quantity_remaining,
+        status = excluded.status
+    `).bind(id, today, slot, newPrepared, newSold, remaining, status).run()
+
+    return c.json({ success: true, status, remaining })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Add menu item (admin)
+menu.post('/', async (c) => {
+  try {
+    const { categoryId, name, description, price, preparationTime, dailyCapacity } = await c.req.json()
+    const result = await c.env.DB.prepare(`
+      INSERT INTO menu_items (category_id, name, description, price, preparation_time_minutes, daily_capacity)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(categoryId, name, description, price, preparationTime || 5, dailyCapacity || 50).run()
+    return c.json({ success: true, id: result.meta.last_row_id })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Toggle item active status (admin)
+menu.patch('/:id/toggle', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    await c.env.DB.prepare('UPDATE menu_items SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?').bind(id).run()
+    const item = await c.env.DB.prepare('SELECT id, name, is_active FROM menu_items WHERE id = ?').bind(id).first()
+    return c.json({ success: true, item })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Get categories
+menu.get('/categories/all', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare('SELECT * FROM categories WHERE is_active = 1 ORDER BY display_order').all()
+    return c.json({ categories: results })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+export default menu
