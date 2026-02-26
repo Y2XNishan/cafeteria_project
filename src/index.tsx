@@ -438,7 +438,7 @@ function studentDashboardHTML(): string {
   <div class="p-5 border-t bg-gray-50">
     <div class="flex justify-between text-lg font-bold mb-4">
       <span>Total</span>
-      <span class="text-blue-600">RM <span id="cart-total">0.00</span></span>
+      <span class="text-blue-600">₹ <span id="cart-total">0.00</span></span>
     </div>
     <button onclick="placeOrder()" id="checkout-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all disabled:opacity-40" disabled>
       <i class="fas fa-check mr-2"></i>Place Order
@@ -514,7 +514,7 @@ async function loadMenu() {
         html += '<span class="ml-2 text-xs px-2 py-1 rounded-full font-medium ' + badge + ' flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + item.availability_badge + '</span>';
         html += '</div>';
         html += '<div class="flex items-center justify-between">';
-        html += '<div><span class="text-xl font-bold text-blue-600">RM ' + item.price.toFixed(2) + '</span>';
+        html += '<div><span class="text-xl font-bold text-blue-600">₹ ' + item.price.toFixed(2) + '</span>';
         html += '<span class="text-xs text-gray-400 ml-2"><i class="fas fa-clock mr-1"></i>' + item.preparation_time_minutes + ' min</span></div>';
         if (!isSoldOut) {
           html += '<div class="flex items-center gap-2">';
@@ -562,13 +562,13 @@ function renderCart() {
   for (const item of cart) {
     html += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">';
     html += '<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-utensils text-blue-500"></i></div>';
-    html += '<div class="flex-1"><p class="font-semibold text-gray-800">' + item.name + '</p><p class="text-sm text-gray-500">RM ' + item.price.toFixed(2) + ' each</p></div>';
+    html += '<div class="flex-1"><p class="font-semibold text-gray-800">' + item.name + '</p><p class="text-sm text-gray-500">₹ ' + item.price.toFixed(2) + ' each</p></div>';
     html += '<div class="flex items-center gap-2">';
     html += '<button onclick="changeQty(' + item.menuItemId + ',-1)" class="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 text-sm font-bold flex items-center justify-center">-</button>';
     html += '<span class="w-5 text-center font-bold">' + item.quantity + '</span>';
     html += '<button onclick="changeQty(' + item.menuItemId + ',1)" class="w-7 h-7 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">+</button>';
     html += '</div>';
-    html += '<span class="text-sm font-bold text-blue-600">RM ' + (item.price * item.quantity).toFixed(2) + '</span>';
+    html += '<span class="text-sm font-bold text-blue-600">₹ ' + (item.price * item.quantity).toFixed(2) + '</span>';
     html += '</div>';
   }
   html += '</div>';
@@ -673,7 +673,7 @@ async function loadMyOrders() {
       '<p class="text-sm text-gray-600 mb-3"><i class="fas fa-utensils text-gray-400 mr-1"></i>' + (o.items_summary || '--') + '</p>' +
       '<div class="flex items-center justify-between text-sm">' +
       '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + (o.pickup_slot || '--') + '</b></span>' +
-      '<span class="font-bold text-blue-600">RM ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
+      '<span class="font-bold text-blue-600">₹ ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
     ).join('');
     document.getElementById('my-orders-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-receipt text-4xl mb-3"></i><p>No orders yet</p></div>';
   } catch(e) { console.error(e); }
@@ -1109,7 +1109,7 @@ function adminDashboardHTML(): string {
               <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><i class="fas fa-dollar-sign text-green-600"></i></div>
               <span class="text-xs text-green-500">Revenue</span>
             </div>
-            <div class="text-3xl font-bold text-gray-800">RM <span id="d-revenue">--</span></div>
+            <div class="text-3xl font-bold text-gray-800">₹ <span id="d-revenue">--</span></div>
             <div class="text-sm text-gray-500 mt-1">Today's Revenue</div>
           </div>
           <div class="card stat-card p-5">
@@ -1289,7 +1289,7 @@ function adminDashboardHTML(): string {
       </div>
       <div class="grid grid-cols-3 gap-2">
         <div>
-          <label class="text-xs font-medium text-gray-600">Price (RM)</label>
+          <label class="text-xs font-medium text-gray-600">Price (₹)</label>
           <input id="new-price" type="number" step="0.5" min="0.5" placeholder="5.00" required class="w-full border rounded-xl px-3 py-2 mt-1 text-sm">
         </div>
         <div>
@@ -1351,7 +1351,7 @@ async function loadDashboard() {
           labels: slots.map(s => s.time_slot.charAt(0).toUpperCase() + s.time_slot.slice(1)),
           datasets: [
             { label: 'Orders', data: slots.map(s => s.count), backgroundColor: ['rgba(59,130,246,0.7)', 'rgba(16,185,129,0.7)', 'rgba(245,158,11,0.7)'], borderRadius: 8 },
-            { label: 'Revenue (RM)', data: slots.map(s => s.revenue||0), backgroundColor: ['rgba(59,130,246,0.2)', 'rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)'], borderRadius: 8 }
+            { label: 'Revenue (₹)', data: slots.map(s => s.revenue||0), backgroundColor: ['rgba(59,130,246,0.2)', 'rgba(16,185,129,0.2)', 'rgba(245,158,11,0.2)'], borderRadius: 8 }
           ]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
@@ -1412,7 +1412,7 @@ async function loadOrdersAdmin() {
       html += '<td class="py-3"><p class="font-medium text-gray-800">' + o.user_name + '</p><p class="text-xs text-gray-400">' + (o.student_id||'--') + '</p></td>';
       html += '<td class="py-3 text-gray-600 max-w-xs truncate text-xs">' + (o.items_summary||'--') + '</td>';
       html += '<td class="py-3 text-xs">' + (o.pickup_slot||'--') + '</td>';
-      html += '<td class="py-3 font-bold text-blue-600">RM ' + (o.total_amount||0).toFixed(2) + '</td>';
+      html += '<td class="py-3 font-bold text-blue-600">₹ ' + (o.total_amount||0).toFixed(2) + '</td>';
       html += '<td class="py-3"><span class="badge ' + (statusColors[o.status]||'bg-gray-100 text-gray-600') + '">' + o.status + '</span></td>';
       html += '<td class="py-3 text-xs text-gray-400">' + new Date(o.created_at).toLocaleTimeString() + '</td></tr>';
     }
@@ -1431,7 +1431,7 @@ async function loadMenuAdmin() {
         html += '<tr class="table-row border-b text-sm">';
         html += '<td class="py-3 font-medium text-gray-800">' + item.name + '</td>';
         html += '<td class="py-3 text-gray-500 text-xs">' + item.category_name + '</td>';
-        html += '<td class="py-3 font-bold text-blue-600">RM ' + item.price.toFixed(2) + '</td>';
+        html += '<td class="py-3 font-bold text-blue-600">₹ ' + item.price.toFixed(2) + '</td>';
         html += '<td class="py-3 text-gray-500 text-xs">' + item.preparation_time_minutes + ' min</td>';
         html += '<td class="py-3 text-gray-500 text-xs">' + item.daily_capacity + '</td>';
         html += '<td class="py-3"><span class="badge ' + (isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500') + '">' + (isActive ? 'Active' : 'Inactive') + '</span></td>';
