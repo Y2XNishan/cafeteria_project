@@ -8,7 +8,7 @@
 ---
 
 ## 🌐 URLs
-- **Live App**: `https://3000-<sandbox>.sandbox.novita.ai`
+- **Live App**: `https://3000-i78ydi2myp3w990rhjubl-18e660f9.sandbox.novita.ai/login`
 - **Login**: `/login`
 - **Student Dashboard**: `/` (after login)
 - **Kitchen Dashboard**: `/kitchen` (kitchen/admin role)
