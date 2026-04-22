@@ -10,13 +10,24 @@ import orders from './routes/orders'
 import queue from './routes/queue'
 import forecast from './routes/forecast'
 import notifications from './routes/notifications'
+import { requireAuth, requireRole } from './middleware/auth'
 
-type Bindings = { DB: D1Database }
+type Bindings = { DB: D1Database; JWT_SECRET: string }
 
 const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS for all API routes
 app.use('/api/*', cors())
+
+// ── Authentication middleware ────────────────────────────────────────────────
+// /api/auth/login stays public; everything else requires a valid JWT.
+app.use('/api/menu/*',          requireAuth)
+app.use('/api/orders/*',        requireAuth)
+app.use('/api/queue/*',         requireAuth)
+app.use('/api/notifications/*', requireAuth)
+app.use('/api/forecast/*',      requireAuth)
+// /api/auth/users is additionally admin-only
+app.use('/api/auth/users',      requireAuth, requireRole('admin'))
 
 // Mount API routes
 app.route('/api/auth', auth)
@@ -184,6 +195,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const data = await res.json();
     if (data.success) {
       sessionStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.setItem('token', data.token || '');
       const role = data.user.role;
       if (role === 'kitchen') window.location.href = '/kitchen';
       else if (role === 'admin') window.location.href = '/admin';
@@ -448,6 +460,18 @@ function studentDashboardHTML(): string {
 <div id="cart-overlay" class="hidden fixed inset-0 bg-black/30 z-40" onclick="toggleCart()"></div>
 
 <script>
+// ── Security helpers ────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function authFetch(url, options) {
+  const token = sessionStorage.getItem('token') || '';
+  const opts = options || {};
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } });
+}
+function logout() { sessionStorage.clear(); window.location.href = '/login'; }
+// ────────────────────────────────────────────────────────────────────────────
 let currentUser = null;
 let currentSlot = 'lunch';
 let cart = [];
@@ -495,13 +519,13 @@ function setSlot(slot) {
 
 async function loadMenu() {
   try {
-    const res = await fetch('/api/menu?slot=' + currentSlot);
+    const res = await authFetch('/api/menu?slot=' + currentSlot);
     const data = await res.json();
     if (!data.categories) return;
     menuData = {};
     let html = '';
     for (const cat of data.categories) {
-      html += '<div class="mb-8"><h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-tag text-blue-500"></i>' + cat.name + '</h3>';
+      html += '<div class="mb-8"><h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-tag text-blue-500"></i>' + escapeHtml(cat.name) + '</h3>';
       html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
       for (const item of cat.items) {
         menuData[item.id] = item;
@@ -510,12 +534,12 @@ async function loadMenu() {
         const dot = { available: 'status-dot-available', running_low: 'status-dot-running_low', sold_out: 'status-dot-sold_out' }[item.status];
         html += '<div class="card p-4 ' + (isSoldOut ? 'opacity-60' : 'hover:shadow-md transition-shadow') + '">';
         html += '<div class="flex items-start justify-between mb-3">';
-        html += '<div class="flex-1"><h4 class="font-bold text-gray-800">' + item.name + '</h4><p class="text-xs text-gray-500 mt-0.5 line-clamp-2">' + (item.description || '') + '</p></div>';
-        html += '<span class="ml-2 text-xs px-2 py-1 rounded-full font-medium ' + badge + ' flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + item.availability_badge + '</span>';
+        html += '<div class="flex-1"><h4 class="font-bold text-gray-800">' + escapeHtml(item.name) + '</h4><p class="text-xs text-gray-500 mt-0.5 line-clamp-2">' + escapeHtml(item.description || '') + '</p></div>';
+        html += '<span class="ml-2 text-xs px-2 py-1 rounded-full font-medium ' + badge + ' flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(item.availability_badge) + '</span>';
         html += '</div>';
         html += '<div class="flex items-center justify-between">';
-        html += '<div><span class="text-xl font-bold text-blue-600">₹ ' + item.price.toFixed(2) + '</span>';
-        html += '<span class="text-xs text-gray-400 ml-2"><i class="fas fa-clock mr-1"></i>' + item.preparation_time_minutes + ' min</span></div>';
+        html += '<div><span class="text-xl font-bold text-blue-600">&#x20B9; ' + item.price.toFixed(2) + '</span>';
+        html += '<span class="text-xs text-gray-400 ml-2"><i class="fas fa-clock mr-1"></i>' + escapeHtml(String(item.preparation_time_minutes)) + ' min</span></div>';
         if (!isSoldOut) {
           html += '<div class="flex items-center gap-2">';
           html += '<button onclick="changeQty(' + item.id + ',-1)" class="btn-add w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 text-lg flex items-center justify-center">-</button>';
@@ -590,7 +614,7 @@ async function placeOrder() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Placing order...';
   try {
-    const res = await fetch('/api/orders', {
+    const res = await authFetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: currentUser.id, timeSlot: currentSlot, items: cart })
@@ -600,10 +624,10 @@ async function placeOrder() {
       cart = [];
       document.querySelectorAll('[id^="qty-"]').forEach(el => el.textContent = '0');
       toggleCart();
-      showToast('Order Placed! 🎉', 'Order ' + data.order.orderNumber + ' confirmed. Pickup: ' + data.order.pickupSlot + '. Wait: ~' + data.order.estimatedWaitMinutes + ' mins', 'green');
+      showToast('Order Placed! 🎉', 'Order ' + escapeHtml(data.order.orderNumber) + ' confirmed. Pickup: ' + escapeHtml(data.order.pickupSlot) + '. Wait: ~' + escapeHtml(String(data.order.estimatedWaitMinutes)) + ' mins', 'green');
       loadQueueStatus();
     } else {
-      showToast('Order Failed', data.error || 'Please try again', 'red');
+      showToast('Order Failed', escapeHtml(data.error || 'Please try again'), 'red');
     }
   } catch(e) {
     showToast('Error', 'Connection failed. Please retry.', 'red');
@@ -614,10 +638,10 @@ async function placeOrder() {
 
 async function loadQueueStatus() {
   try {
-    const res = await fetch('/api/queue/status?slot=' + currentSlot);
+    const res = await authFetch('/api/queue/status?slot=' + currentSlot);
     const data = await res.json();
-    document.getElementById('banner-queue-len').textContent = data.queueLength;
-    document.getElementById('banner-wait').textContent = data.estimatedWaitMinutes;
+    document.getElementById('banner-queue-len').textContent = data.queueLength ?? '--';
+    document.getElementById('banner-wait').textContent = data.estimatedWaitMinutes ?? '--';
     document.getElementById('banner-next-slot').textContent = data.nextAvailableSlot || '--';
     if (data.isSurge) document.getElementById('banner-surge').classList.remove('hidden');
     else document.getElementById('banner-surge').classList.add('hidden');
@@ -626,18 +650,18 @@ async function loadQueueStatus() {
 
 async function loadQueueSection() {
   try {
-    const res = await fetch('/api/queue/status?slot=' + currentSlot);
+    const res = await authFetch('/api/queue/status?slot=' + currentSlot);
     const data = await res.json();
-    document.getElementById('q-length').textContent = data.queueLength;
-    document.getElementById('q-wait').textContent = data.estimatedWaitMinutes;
+    document.getElementById('q-length').textContent = data.queueLength ?? '--';
+    document.getElementById('q-wait').textContent = data.estimatedWaitMinutes ?? '--';
     document.getElementById('q-next-slot').textContent = data.nextAvailableSlot || '--';
-    
+
     // Slots grid
-    const slotsHtml = (data.availableSlots || []).map(s => 
+    const slotsHtml = (data.availableSlots || []).map(s =>
       '<div class="slot-chip p-3 rounded-xl border-2 text-center ' + (s.available ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50') + '">' +
-      '<div class="font-bold text-sm ' + (s.available ? 'text-green-700' : 'text-red-600') + '">' + s.slot + '</div>' +
-      '<div class="text-xs text-gray-500 mt-1">' + s.orderCount + '/' + s.maxCapacity + ' orders</div>' +
-      '<div class="text-xs ' + (s.available ? 'text-green-600' : 'text-red-500') + ' font-medium">' + (s.available ? '✓ Available' : '✗ Full') + '</div>' +
+      '<div class="font-bold text-sm ' + (s.available ? 'text-green-700' : 'text-red-600') + '">' + escapeHtml(s.slot) + '</div>' +
+      '<div class="text-xs text-gray-500 mt-1">' + escapeHtml(String(s.orderCount)) + '/' + escapeHtml(String(s.maxCapacity)) + ' orders</div>' +
+      '<div class="text-xs ' + (s.available ? 'text-green-600' : 'text-red-500') + ' font-medium">' + (s.available ? '&#10003; Available' : '&#10007; Full') + '</div>' +
       '</div>'
     ).join('');
     document.getElementById('slots-grid').innerHTML = slotsHtml || '<p class="text-gray-400 col-span-4 text-center py-4">No slot data</p>';
@@ -646,11 +670,11 @@ async function loadQueueSection() {
     const qHtml = (data.entries || []).map(e => {
       const statusColor = { ready: 'text-green-600 bg-green-50', processing: 'text-orange-600 bg-orange-50', waiting: 'text-blue-600 bg-blue-50', collected: 'text-gray-400 bg-gray-50' }[e.status] || 'text-gray-600 bg-gray-50';
       return '<div class="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border">' +
-        '<div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 text-sm">' + e.queue_position + '</div>' +
-        '<div class="flex-1"><p class="font-medium text-gray-800 text-sm">' + e.user_name + ' <span class="text-gray-400 text-xs">(' + (e.student_id || '--') + ')</span></p>' +
-        '<p class="text-xs text-gray-500">' + (e.items || '--') + '</p></div>' +
-        '<span class="text-xs px-2 py-1 rounded-full font-medium ' + statusColor + '">' + e.status + '</span>' +
-        '<span class="text-xs text-gray-500">' + (e.pickup_slot || '--') + '</span></div>';
+        '<div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 text-sm">' + escapeHtml(String(e.queue_position)) + '</div>' +
+        '<div class="flex-1"><p class="font-medium text-gray-800 text-sm">' + escapeHtml(e.user_name) + ' <span class="text-gray-400 text-xs">(' + escapeHtml(e.student_id || '--') + ')</span></p>' +
+        '<p class="text-xs text-gray-500">' + escapeHtml(e.items || '--') + '</p></div>' +
+        '<span class="text-xs px-2 py-1 rounded-full font-medium ' + statusColor + '">' + escapeHtml(e.status) + '</span>' +
+        '<span class="text-xs text-gray-500">' + escapeHtml(e.pickup_slot || '--') + '</span></div>';
     }).join('');
     document.getElementById('queue-list').innerHTML = qHtml || '<p class="text-gray-400 text-center py-4">Queue is empty</p>';
   } catch(e) { console.error(e); }
@@ -659,21 +683,21 @@ async function loadQueueSection() {
 async function loadMyOrders() {
   if (!currentUser) return;
   try {
-    const res = await fetch('/api/orders/user/' + currentUser.id + '?limit=15');
+    const res = await authFetch('/api/orders/user/' + currentUser.id + '?limit=15');
     const data = await res.json();
     const statusColors = { completed: 'bg-green-100 text-green-700', ready: 'bg-emerald-100 text-emerald-700', preparing: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', pending: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-600' };
     const statusIcons = { completed: 'fa-check-circle', ready: 'fa-bell', preparing: 'fa-fire', confirmed: 'fa-thumbs-up', pending: 'fa-clock', cancelled: 'fa-times-circle' };
-    const html = (data.orders || []).map(o => 
-      '<div class="card order-card ' + o.status + ' p-5">' +
+    const html = (data.orders || []).map(o =>
+      '<div class="card order-card ' + escapeHtml(o.status) + ' p-5">' +
       '<div class="flex items-start justify-between mb-3">' +
-      '<div><p class="font-bold text-gray-800">' + o.order_number + '</p>' +
-      '<p class="text-sm text-gray-500">' + new Date(o.created_at).toLocaleString() + '</p></div>' +
+      '<div><p class="font-bold text-gray-800">' + escapeHtml(o.order_number) + '</p>' +
+      '<p class="text-sm text-gray-500">' + escapeHtml(new Date(o.created_at).toLocaleString()) + '</p></div>' +
       '<span class="text-xs px-3 py-1 rounded-full font-semibold ' + (statusColors[o.status] || 'bg-gray-100') + '">' +
-      '<i class="fas ' + (statusIcons[o.status] || 'fa-circle') + ' mr-1"></i>' + o.status.toUpperCase() + '</span></div>' +
-      '<p class="text-sm text-gray-600 mb-3"><i class="fas fa-utensils text-gray-400 mr-1"></i>' + (o.items_summary || '--') + '</p>' +
+      '<i class="fas ' + (statusIcons[o.status] || 'fa-circle') + ' mr-1"></i>' + escapeHtml(o.status.toUpperCase()) + '</span></div>' +
+      '<p class="text-sm text-gray-600 mb-3"><i class="fas fa-utensils text-gray-400 mr-1"></i>' + escapeHtml(o.items_summary || '--') + '</p>' +
       '<div class="flex items-center justify-between text-sm">' +
-      '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + (o.pickup_slot || '--') + '</b></span>' +
-      '<span class="font-bold text-blue-600">₹ ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
+      '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + escapeHtml(o.pickup_slot || '--') + '</b></span>' +
+      '<span class="font-bold text-blue-600">&#x20B9; ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
     ).join('');
     document.getElementById('my-orders-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-receipt text-4xl mb-3"></i><p>No orders yet</p></div>';
   } catch(e) { console.error(e); }
@@ -682,22 +706,21 @@ async function loadMyOrders() {
 async function loadNotifications() {
   if (!currentUser) return;
   try {
-    const res = await fetch('/api/notifications/user/' + currentUser.id);
+    const res = await authFetch('/api/notifications/user/' + currentUser.id);
     const data = await res.json();
     const count = data.unreadCount || 0;
     const badge = document.getElementById('notif-badge');
     badge.textContent = count;
     badge.classList.toggle('hidden', count === 0);
-    document.getElementById('notif-badge').textContent = count;
 
     const typeIcons = { order_ready: 'fa-bell text-green-500', order_delayed: 'fa-clock text-orange-500', low_stock: 'fa-exclamation-triangle text-red-500' };
     const html = (data.notifications || []).map(n =>
       '<div class="card p-4 flex items-start gap-3 ' + (n.is_read ? 'opacity-60' : 'border-l-4 border-blue-500') + '" onclick="markRead(' + n.id + ',this)">' +
       '<div class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">' +
       '<i class="fas ' + (typeIcons[n.type] || 'fa-info text-blue-500') + '"></i></div>' +
-      '<div class="flex-1"><p class="font-semibold text-gray-800 text-sm">' + n.title + '</p>' +
-      '<p class="text-sm text-gray-500 mt-0.5">' + n.message + '</p>' +
-      '<p class="text-xs text-gray-400 mt-1">' + new Date(n.created_at).toLocaleString() + '</p></div>' +
+      '<div class="flex-1"><p class="font-semibold text-gray-800 text-sm">' + escapeHtml(n.title) + '</p>' +
+      '<p class="text-sm text-gray-500 mt-0.5">' + escapeHtml(n.message) + '</p>' +
+      '<p class="text-xs text-gray-400 mt-1">' + escapeHtml(new Date(n.created_at).toLocaleString()) + '</p></div>' +
       '</div>'
     ).join('');
     document.getElementById('notif-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-bell text-4xl mb-3"></i><p>No notifications</p></div>';
@@ -705,13 +728,13 @@ async function loadNotifications() {
 }
 
 async function markRead(id, el) {
-  await fetch('/api/notifications/' + id + '/read', { method: 'PATCH' });
+  await authFetch('/api/notifications/' + id + '/read', { method: 'PATCH' });
   el.classList.add('opacity-60');
   el.classList.remove('border-l-4', 'border-blue-500');
 }
 async function markAllRead() {
   if (!currentUser) return;
-  await fetch('/api/notifications/user/' + currentUser.id + '/read-all', { method: 'PATCH' });
+  await authFetch('/api/notifications/user/' + currentUser.id + '/read-all', { method: 'PATCH' });
   loadNotifications();
 }
 
@@ -852,6 +875,17 @@ function kitchenDashboardHTML(): string {
 </div>
 
 <script>
+// ── Security helpers ────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function authFetch(url, options) {
+  const token = sessionStorage.getItem('token') || '';
+  const opts = options || {};
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } });
+}
+// ────────────────────────────────────────────────────────────────────────────
 let currentSlot = 'lunch';
 let refreshTimer;
 
@@ -869,10 +903,14 @@ function setSlot(slot) {
 async function refreshAll() {
   await Promise.all([loadQueueStats(), loadOrders(), loadForecasts(), loadStockStatus(), loadAlerts()]);
 }
+async function kFetch(url, opts) {
+  // alias kept for clarity; kitchen uses authFetch
+  return authFetch(url, opts);
+}
 
 async function loadQueueStats() {
   try {
-    const res = await fetch('/api/queue/status?slot=' + currentSlot);
+    const res = await authFetch('/api/queue/status?slot=' + currentSlot);
     const data = await res.json();
     document.getElementById('k-queue-len').textContent = data.queueLength ?? '--';
     document.getElementById('k-wait-time').textContent = data.estimatedWaitMinutes ?? '--';
@@ -884,7 +922,7 @@ async function loadQueueStats() {
 
 async function loadAlerts() {
   try {
-    const res = await fetch('/api/queue/alerts');
+    const res = await authFetch('/api/queue/alerts');
     const data = await res.json();
     const alerts = data.alerts || [];
     document.getElementById('k-alerts-count').textContent = alerts.length;
@@ -895,8 +933,8 @@ async function loadAlerts() {
     for (const a of alerts) {
       html += '<div class="alert-card rounded-xl p-3 flex items-start gap-3 ' + (alertColors[a.alert_type]||'border-blue-500 bg-blue-900/20') + '">';
       html += '<i class="fas ' + (alertIcons[a.alert_type]||'fa-info text-blue-400') + ' mt-0.5"></i>';
-      html += '<div class="flex-1"><p class="text-sm font-semibold text-white">' + (a.item_name ? a.item_name + ' – ' : '') + a.alert_type.replace('_',' ').toUpperCase() + '</p>';
-      html += '<p class="text-xs text-slate-300 mt-0.5">' + a.message + '</p></div>';
+      html += '<div class="flex-1"><p class="text-sm font-semibold text-white">' + (a.item_name ? escapeHtml(a.item_name) + ' &#8211; ' : '') + escapeHtml(a.alert_type.replace('_',' ').toUpperCase()) + '</p>';
+      html += '<p class="text-xs text-slate-300 mt-0.5">' + escapeHtml(a.message) + '</p></div>';
       html += '<button onclick="resolveAlert(' + a.id + ',this)" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded-lg text-slate-300">Resolve</button>';
       html += '</div>';
     }
@@ -906,14 +944,14 @@ async function loadAlerts() {
 }
 
 async function resolveAlert(id, btn) {
-  await fetch('/api/queue/alerts/' + id + '/resolve', { method: 'PATCH' });
+  await authFetch('/api/queue/alerts/' + id + '/resolve', { method: 'PATCH' });
   btn.closest('.alert-card').remove();
   loadAlerts();
 }
 
 async function loadOrders() {
   try {
-    const res = await fetch('/api/orders/active/all?slot=' + currentSlot);
+    const res = await authFetch('/api/orders/active/all?slot=' + currentSlot);
     const data = await res.json();
     const orders = data.orders || [];
     if (!orders.length) {
@@ -923,14 +961,14 @@ async function loadOrders() {
     const statusColors = { confirmed: 'text-blue-400', preparing: 'text-yellow-400', ready: 'text-green-400', pending: 'text-slate-400' };
     let html = '';
     for (const o of orders) {
-      html += '<div class="order-ticket ' + o.status + ' p-3">';
+      html += '<div class="order-ticket ' + escapeHtml(o.status) + ' p-3">';
       html += '<div class="flex items-center justify-between mb-2">';
-      html += '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + (o.queue_position||'?') + '</span>';
-      html += '<div><p class="font-semibold text-white text-sm">' + o.order_number + '</p><p class="text-xs text-slate-400">' + o.user_name + (o.student_id ? ' · ' + o.student_id : '') + '</p></div></div>';
-      html += '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + o.status.toUpperCase() + '</span></div>';
-      html += '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + (o.items_summary||'--') + '</p>';
+      html += '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + escapeHtml(String(o.queue_position||'?')) + '</span>';
+      html += '<div><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>';
+      html += '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + escapeHtml(o.status.toUpperCase()) + '</span></div>';
+      html += '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + escapeHtml(o.items_summary||'--') + '</p>';
       html += '<div class="flex items-center justify-between">';
-      html += '<span class="text-xs text-slate-500"><i class="fas fa-calendar-check mr-1"></i>' + (o.pickup_slot||'--') + '</span>';
+      html += '<span class="text-xs text-slate-500"><i class="fas fa-calendar-check mr-1"></i>' + escapeHtml(o.pickup_slot||'--') + '</span>';
       html += '<div class="flex gap-1">';
       if (o.status === 'confirmed' || o.status === 'pending') html += '<button onclick="updateStatus(' + o.id + ',\'preparing\',this)" class="status-btn bg-yellow-900 text-yellow-300 hover:bg-yellow-800"><i class="fas fa-fire mr-1"></i>Start</button>';
       if (o.status === 'preparing') html += '<button onclick="updateStatus(' + o.id + ',\'ready\',this)" class="status-btn bg-green-900 text-green-300 hover:bg-green-800"><i class="fas fa-bell mr-1"></i>Ready</button>';
@@ -945,7 +983,7 @@ async function updateStatus(orderId, newStatus, btn) {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   try {
-    await fetch('/api/orders/' + orderId + '/status', {
+    await authFetch('/api/orders/' + orderId + '/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
@@ -956,24 +994,25 @@ async function updateStatus(orderId, newStatus, btn) {
 
 async function loadForecasts() {
   try {
-    const res = await fetch('/api/forecast/predict?slot=' + currentSlot);
+    const res = await authFetch('/api/forecast/predict?slot=' + currentSlot);
     const data = await res.json();
     const forecasts = (data.forecasts || []).slice(0, 12);
+    const maxQty = forecasts.reduce((m, f) => Math.max(m, f.predictedQuantity), 1);
     let html = '';
     for (const f of forecasts) {
       const trendIcon = { rising: 'fa-arrow-trend-up text-green-400', falling: 'fa-arrow-trend-down text-red-400', stable: 'fa-minus text-slate-400' }[f.trend] || 'fa-minus text-slate-400';
-      const barPct = Math.min(100, (f.predictedQuantity / 150) * 100);
+      const barPct = Math.min(100, (f.predictedQuantity / maxQty) * 100);
       html += '<div class="card-dark p-3">';
       html += '<div class="flex items-center justify-between mb-1">';
-      html += '<span class="text-sm font-medium text-white truncate flex-1">' + f.menuItemName + '</span>';
+      html += '<span class="text-sm font-medium text-white truncate flex-1">' + escapeHtml(f.menuItemName) + '</span>';
       html += '<div class="flex items-center gap-2 ml-2 flex-shrink-0"><i class="fas ' + trendIcon + ' text-xs"></i>';
-      html += '<span class="text-blue-400 font-bold text-sm">' + f.predictedQuantity + '</span></div></div>';
+      html += '<span class="text-blue-400 font-bold text-sm">' + escapeHtml(String(f.predictedQuantity)) + '</span></div></div>';
       html += '<div class="h-1.5 bg-slate-700 rounded-full overflow-hidden">';
       html += '<div class="forecast-bar h-full bg-gradient-to-r from-blue-500 to-blue-400" style="width:' + barPct + '%"></div></div>';
-      html += '<div class="flex justify-between mt-1"><span class="text-xs text-slate-500">' + f.confidencePct + '% confidence</span>';
-      if (f.actualSold !== null) html += '<span class="text-xs text-slate-500">Actual: ' + f.actualSold + '</span>';
+      html += '<div class="flex justify-between mt-1"><span class="text-xs text-slate-500">' + escapeHtml(String(f.confidencePct)) + '% confidence</span>';
+      if (f.actualSold !== null) html += '<span class="text-xs text-slate-500">Actual: ' + escapeHtml(String(f.actualSold)) + '</span>';
       html += '</div>';
-      if (f.recommendation) html += '<p class="text-xs text-slate-400 mt-1 border-t border-slate-700 pt-1">' + f.recommendation + '</p>';
+      if (f.recommendation) html += '<p class="text-xs text-slate-400 mt-1 border-t border-slate-700 pt-1">' + escapeHtml(f.recommendation) + '</p>';
       html += '</div>';
     }
     document.getElementById('forecast-list').innerHTML = html || '<p class="text-slate-500 text-center py-4">No forecast data</p>';
@@ -982,7 +1021,7 @@ async function loadForecasts() {
 
 async function loadStockStatus() {
   try {
-    const res = await fetch('/api/menu?slot=' + currentSlot);
+    const res = await authFetch('/api/menu?slot=' + currentSlot);
     const data = await res.json();
     let html = '';
     for (const cat of (data.categories||[])) {
@@ -992,10 +1031,10 @@ async function loadStockStatus() {
         const badge = { available: 'text-green-400', running_low: 'text-yellow-400', sold_out: 'text-red-400' }[item.status] || 'text-slate-400';
         html += '<div class="flex items-center gap-3">';
         html += '<div class="flex-1 min-w-0">';
-        html += '<div class="flex justify-between items-center mb-1"><span class="text-xs text-slate-300 truncate">' + item.name + '</span>';
-        html += '<span class="text-xs font-bold ' + badge + ' ml-2 flex-shrink-0">' + item.availability_badge + '</span></div>';
+        html += '<div class="flex justify-between items-center mb-1"><span class="text-xs text-slate-300 truncate">' + escapeHtml(item.name) + '</span>';
+        html += '<span class="text-xs font-bold ' + badge + ' ml-2 flex-shrink-0">' + escapeHtml(item.availability_badge) + '</span></div>';
         html += '<div class="h-1.5 bg-slate-700 rounded-full"><div class="h-full rounded-full ' + barColor + ' transition-all" style="width:' + Math.max(2,pct) + '%"></div></div>';
-        html += '<p class="text-xs text-slate-500 mt-0.5">' + item.quantity_remaining + '/' + item.quantity_prepared + ' remaining</p></div></div>';
+        html += '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(String(item.quantity_remaining)) + '/' + escapeHtml(String(item.quantity_prepared)) + ' remaining</p></div></div>';
       }
     }
     document.getElementById('stock-list').innerHTML = html || '<p class="text-slate-500 text-sm text-center py-4">No stock data</p>';
@@ -1309,6 +1348,17 @@ function adminDashboardHTML(): string {
 </div>
 
 <script>
+// ── Security helpers ────────────────────────────────────────────────────────
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function authFetch(url, options) {
+  const token = sessionStorage.getItem('token') || '';
+  const opts = options || {};
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } });
+}
+// ────────────────────────────────────────────────────────────────────────────
 let slotChart, weeklyChart;
 
 function showSection(sec) {
@@ -1329,8 +1379,8 @@ function showSection(sec) {
 async function loadDashboard() {
   try {
     const [statsRes, topRes] = await Promise.all([
-      fetch('/api/orders/stats/today'),
-      fetch('/api/forecast/top-items?limit=5')
+      authFetch('/api/orders/stats/today'),
+      authFetch('/api/forecast/top-items?limit=5')
     ]);
     const statsData = await statsRes.json();
     const topData = await topRes.json();
@@ -1365,7 +1415,7 @@ async function loadDashboard() {
       const maxSold = topData.topItems[0]?.total_sold || 1;
       const pct = Math.round((item.total_sold / maxSold) * 100);
       topHtml += '<div class="flex items-center gap-3"><div class="w-5 h-5 ' + colors[i] + ' rounded text-white text-xs flex items-center justify-center font-bold">' + (i+1) + '</div>' +
-        '<div class="flex-1"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">' + item.name + '</span><span class="text-gray-500">' + item.total_sold + ' sold</span></div>' +
+        '<div class="flex-1"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-gray-700">' + escapeHtml(item.name) + '</span><span class="text-gray-500">' + escapeHtml(String(item.total_sold)) + ' sold</span></div>' +
         '<div class="h-1.5 bg-gray-100 rounded-full"><div class="h-full rounded-full ' + colors[i] + '" style="width:' + pct + '%"></div></div></div></div>';
     });
     document.getElementById('top-items-list').innerHTML = topHtml || '<p class="text-gray-400 text-sm">No data</p>';
@@ -1402,19 +1452,19 @@ async function loadForecastSummary() {
 async function loadOrdersAdmin() {
   const slot = document.getElementById('order-slot-filter')?.value || 'lunch';
   try {
-    const res = await fetch('/api/orders/active/all?slot=' + slot);
+    const res = await authFetch('/api/orders/active/all?slot=' + slot);
     const data = await res.json();
     const statusColors = { completed: 'bg-green-100 text-green-700', ready: 'bg-emerald-100 text-emerald-700', preparing: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', pending: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-600' };
     let html = '';
     for (const o of (data.orders||[])) {
       html += '<tr class="table-row border-b text-sm">';
-      html += '<td class="py-3 font-mono text-xs font-bold text-gray-700">' + o.order_number + '</td>';
-      html += '<td class="py-3"><p class="font-medium text-gray-800">' + o.user_name + '</p><p class="text-xs text-gray-400">' + (o.student_id||'--') + '</p></td>';
-      html += '<td class="py-3 text-gray-600 max-w-xs truncate text-xs">' + (o.items_summary||'--') + '</td>';
-      html += '<td class="py-3 text-xs">' + (o.pickup_slot||'--') + '</td>';
-      html += '<td class="py-3 font-bold text-blue-600">₹ ' + (o.total_amount||0).toFixed(2) + '</td>';
-      html += '<td class="py-3"><span class="badge ' + (statusColors[o.status]||'bg-gray-100 text-gray-600') + '">' + o.status + '</span></td>';
-      html += '<td class="py-3 text-xs text-gray-400">' + new Date(o.created_at).toLocaleTimeString() + '</td></tr>';
+      html += '<td class="py-3 font-mono text-xs font-bold text-gray-700">' + escapeHtml(o.order_number) + '</td>';
+      html += '<td class="py-3"><p class="font-medium text-gray-800">' + escapeHtml(o.user_name) + '</p><p class="text-xs text-gray-400">' + escapeHtml(o.student_id||'--') + '</p></td>';
+      html += '<td class="py-3 text-gray-600 max-w-xs truncate text-xs">' + escapeHtml(o.items_summary||'--') + '</td>';
+      html += '<td class="py-3 text-xs">' + escapeHtml(o.pickup_slot||'--') + '</td>';
+      html += '<td class="py-3 font-bold text-blue-600">&#x20B9; ' + (o.total_amount||0).toFixed(2) + '</td>';
+      html += '<td class="py-3"><span class="badge ' + (statusColors[o.status]||'bg-gray-100 text-gray-600') + '">' + escapeHtml(o.status) + '</span></td>';
+      html += '<td class="py-3 text-xs text-gray-400">' + escapeHtml(new Date(o.created_at).toLocaleTimeString()) + '</td></tr>';
     }
     document.getElementById('orders-table-body').innerHTML = html || '<tr><td colspan="7" class="text-center py-8 text-gray-400">No orders found</td></tr>';
   } catch(e) { console.error(e); }
@@ -1422,18 +1472,18 @@ async function loadOrdersAdmin() {
 
 async function loadMenuAdmin() {
   try {
-    const res = await fetch('/api/menu?slot=lunch');
+    const res = await authFetch('/api/menu?slot=lunch');
     const data = await res.json();
     let html = '';
     for (const cat of (data.categories||[])) {
       for (const item of cat.items) {
         const isActive = item.is_active;
         html += '<tr class="table-row border-b text-sm">';
-        html += '<td class="py-3 font-medium text-gray-800">' + item.name + '</td>';
-        html += '<td class="py-3 text-gray-500 text-xs">' + item.category_name + '</td>';
-        html += '<td class="py-3 font-bold text-blue-600">₹ ' + item.price.toFixed(2) + '</td>';
-        html += '<td class="py-3 text-gray-500 text-xs">' + item.preparation_time_minutes + ' min</td>';
-        html += '<td class="py-3 text-gray-500 text-xs">' + item.daily_capacity + '</td>';
+        html += '<td class="py-3 font-medium text-gray-800">' + escapeHtml(item.name) + '</td>';
+        html += '<td class="py-3 text-gray-500 text-xs">' + escapeHtml(item.category_name) + '</td>';
+        html += '<td class="py-3 font-bold text-blue-600">&#x20B9; ' + item.price.toFixed(2) + '</td>';
+        html += '<td class="py-3 text-gray-500 text-xs">' + escapeHtml(String(item.preparation_time_minutes)) + ' min</td>';
+        html += '<td class="py-3 text-gray-500 text-xs">' + escapeHtml(String(item.daily_capacity)) + '</td>';
         html += '<td class="py-3"><span class="badge ' + (isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500') + '">' + (isActive ? 'Active' : 'Inactive') + '</span></td>';
         html += '<td class="py-3"><button onclick="toggleItem(' + item.id + ',this)" class="text-xs ' + (isActive ? 'text-red-500 hover:text-red-700' : 'text-green-500 hover:text-green-700') + '">' + (isActive ? 'Deactivate' : 'Activate') + '</button></td>';
         html += '</tr>';
@@ -1445,7 +1495,7 @@ async function loadMenuAdmin() {
 
 async function toggleItem(id, btn) {
   try {
-    await fetch('/api/menu/' + id + '/toggle', { method: 'PATCH' });
+    await authFetch('/api/menu/' + id + '/toggle', { method: 'PATCH' });
     loadMenuAdmin();
   } catch(e) {}
 }
@@ -1453,7 +1503,7 @@ async function toggleItem(id, btn) {
 async function addMenuItem(e) {
   e.preventDefault();
   try {
-    const res = await fetch('/api/menu', {
+    const res = await authFetch('/api/menu', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1470,13 +1520,15 @@ async function addMenuItem(e) {
       document.getElementById('add-item-modal').classList.add('hidden');
       document.getElementById('add-item-form').reset();
       loadMenuAdmin();
+    } else {
+      alert('Failed to add item: ' + (data.error || 'Unknown error'));
     }
   } catch(e) { console.error(e); }
 }
 
 async function loadAnalytics() {
   try {
-    const [weeklyRes] = await Promise.all([fetch('/api/forecast/weekly')]);
+    const weeklyRes = await authFetch('/api/forecast/weekly');
     const weeklyData = await weeklyRes.json();
     const items = (weeklyData.weekly || []).slice(0, 6);
 
