@@ -54,9 +54,11 @@ auth.post('/login', async (c) => {
     ).bind(user.id).run()
 
     const now = Math.floor(Date.now() / 1000)
+    const secret = c.env.JWT_SECRET || 'smartcafe-default-dev-secret-key-2026'
     const token = await sign(
       { userId: user.id, role: user.role, name: user.name, email: user.email, exp: now + TOKEN_TTL_SECONDS },
-      c.env.JWT_SECRET
+      secret,
+      'HS256'
     )
 
     return c.json({
