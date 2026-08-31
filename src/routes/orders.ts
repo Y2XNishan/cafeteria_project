@@ -264,15 +264,23 @@ orders.patch('/:id/status', async (c) => {
       await c.env.DB.prepare("UPDATE queue_entries SET status = ? WHERE order_id = ?").bind(queueStatus, id).run()
     }
 
-    // Notifications
+    // Notifications on state transition
     if (status === 'ready') {
       await c.env.DB.prepare(`
         INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_ready', '🍽️ Order Ready!', ?)
-      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} is ready! Pickup at: ${existingOrder.pickup_slot}`).run()
+      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} is ready for pickup! Slot: ${existingOrder.pickup_slot || 'Counter'}`).run()
+    } else if (status === 'preparing') {
+      await c.env.DB.prepare(`
+        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_delayed', '🍳 Cooking Started', ?)
+      `).bind(existingOrder.user_id, id, `The kitchen is now preparing your order ${existingOrder.order_number}.`).run()
+    } else if (status === 'completed') {
+      await c.env.DB.prepare(`
+        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_ready', '✅ Order Completed', ?)
+      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} has been collected. Bon appétit!`).run()
     } else if (status === 'cancelled') {
       await c.env.DB.prepare(`
-        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_delayed', 'Order Cancelled', ?)
-      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} was cancelled.`).run()
+        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_delayed', '❌ Order Cancelled', ?)
+      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} was cancelled. Any reserved stock has been refunded.`).run()
     }
 
     return c.json({ success: true, status, orderNumber: existingOrder.order_number })
