@@ -140,20 +140,26 @@ export function optimizeQueue(
   maxOrdersPerSlot: number,
   currentTime: Date
 ): QueueOptimizationResult {
-  const estimatedWaitMinutes = Math.round(queueLength * (avgPrepTimeMinutes / 3))
-  const isSurge = queueLength > maxOrdersPerSlot * 2
+  const avgPrep = Math.max(2, Math.round(avgPrepTimeMinutes || 5))
+  const estimatedWaitMinutes = queueLength === 0 ? avgPrep : Math.round(queueLength * (avgPrep / 2) + avgPrep)
+  const isSurge = queueLength >= maxOrdersPerSlot * 1.5
 
   // Generate available slots for the next 2 hours
   const slots: PickupSlot[] = []
-  const startMinutes = Math.ceil((currentTime.getMinutes() + 5) / slotIntervalMinutes) * slotIntervalMinutes
-  let slotStart = new Date(currentTime)
-  slotStart.setMinutes(startMinutes, 0, 0)
+  const currentMs = currentTime.getTime()
+  const intervalMs = slotIntervalMinutes * 60 * 1000
+  // Round up to next slot interval with a 5-minute prep buffer
+  const startMs = Math.ceil((currentMs + 5 * 60 * 1000) / intervalMs) * intervalMs
+
+  let slotStart = new Date(startMs)
 
   for (let i = 0; i < 8; i++) {
-    const slotEnd = new Date(slotStart.getTime() + slotIntervalMinutes * 60 * 1000)
+    const slotEnd = new Date(slotStart.getTime() + intervalMs)
     const slotLabel = `${pad(slotStart.getHours())}:${pad(slotStart.getMinutes())}-${pad(slotEnd.getHours())}:${pad(slotEnd.getMinutes())}`
-    const orderCount = i < Math.ceil(queueLength / maxOrdersPerSlot) ? maxOrdersPerSlot : 0
-    const estimatedWait = i * slotIntervalMinutes + avgPrepTimeMinutes
+    const orderCount = i < Math.floor(queueLength / maxOrdersPerSlot)
+      ? maxOrdersPerSlot
+      : (i === Math.floor(queueLength / maxOrdersPerSlot) ? queueLength % maxOrdersPerSlot : 0)
+    const estimatedWait = i * slotIntervalMinutes + avgPrep
     slots.push({
       slot: slotLabel,
       available: orderCount < maxOrdersPerSlot,
@@ -164,7 +170,7 @@ export function optimizeQueue(
     slotStart = slotEnd
   }
 
-  const nextAvailableSlot = slots.find(s => s.available)?.slot ?? 'No slots available'
+  const nextAvailableSlot = slots.find(s => s.available)?.slot ?? slots[0]?.slot ?? 'No slots available'
 
   return {
     currentQueueLength: queueLength,
