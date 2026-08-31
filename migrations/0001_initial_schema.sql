@@ -150,8 +150,14 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_time_slot ON orders(time_slot);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at_slot ON orders(created_at, time_slot, status);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_menu_item_id ON order_items(menu_item_id);
 CREATE INDEX IF NOT EXISTS idx_menu_availability_date ON menu_availability(date);
+CREATE INDEX IF NOT EXISTS idx_menu_availability_lookup ON menu_availability(menu_item_id, date, time_slot);
 CREATE INDEX IF NOT EXISTS idx_demand_forecasts_date ON demand_forecasts(forecast_date);
+CREATE INDEX IF NOT EXISTS idx_demand_forecasts_lookup ON demand_forecasts(menu_item_id, forecast_date, time_slot);
 CREATE INDEX IF NOT EXISTS idx_queue_entries_date ON queue_entries(date);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_queue_entries_slot_status ON queue_entries(date, time_slot, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_surge_alerts_date_status ON surge_alerts(date, is_resolved);
