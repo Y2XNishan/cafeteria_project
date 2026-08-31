@@ -45,15 +45,46 @@ orders.post('/', async (c) => {
 
     // Validate items and compute total
     let totalAmount = 0
-    const resolvedItems: Array<{ id: number; qty: number; price: number; name: string; prepTime: number }> = []
+    const resolvedItems: Array<{ id: number; qty: number; price: number; name: string; prepTime: number; remaining: number; prepared: number }> = []
+    
     for (const item of items) {
-      const mi = await c.env.DB.prepare('SELECT id, name, price, preparation_time_minutes FROM menu_items WHERE id = ? AND is_active = 1').bind(item.menuItemId).first<any>()
-      if (!mi) return c.json({ error: `Menu item ${item.menuItemId} not found` }, 400)
-      const avail = await c.env.DB.prepare('SELECT status, quantity_remaining FROM menu_availability WHERE menu_item_id = ? AND date = ? AND time_slot = ?').bind(item.menuItemId, today, timeSlot).first<any>()
-      if (avail?.status === 'sold_out') return c.json({ error: `${mi.name} is sold out` }, 400)
-      const qty = item.quantity || 1
+      const mi = await c.env.DB.prepare(
+        'SELECT id, name, price, preparation_time_minutes, daily_capacity FROM menu_items WHERE id = ? AND is_active = 1'
+      ).bind(item.menuItemId).first<any>()
+      if (!mi) return c.json({ error: `Menu item #${item.menuItemId} not found or inactive` }, 400)
+
+      const qty = Math.max(1, parseInt(item.quantity) || 1)
+
+      // Retrieve or initialize daily availability
+      let avail = await c.env.DB.prepare(
+        'SELECT quantity_prepared, quantity_sold, quantity_remaining, status FROM menu_availability WHERE menu_item_id = ? AND date = ? AND time_slot = ?'
+      ).bind(item.menuItemId, today, timeSlot).first<any>()
+
+      if (!avail) {
+        await c.env.DB.prepare(`
+          INSERT OR IGNORE INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
+          VALUES (?, ?, ?, ?, 0, ?, 'available')
+        `).bind(item.menuItemId, today, timeSlot, mi.daily_capacity, mi.daily_capacity).run()
+        avail = { quantity_prepared: mi.daily_capacity, quantity_sold: 0, quantity_remaining: mi.daily_capacity, status: 'available' }
+      }
+
+      if (avail.status === 'sold_out' || avail.quantity_remaining <= 0) {
+        return c.json({ error: `Sorry, "${mi.name}" is sold out for ${timeSlot}` }, 400)
+      }
+      if (avail.quantity_remaining < qty) {
+        return c.json({ error: `Only ${avail.quantity_remaining} portion(s) of "${mi.name}" remaining` }, 400)
+      }
+
       totalAmount += mi.price * qty
-      resolvedItems.push({ id: mi.id, qty, price: mi.price, name: mi.name, prepTime: mi.preparation_time_minutes })
+      resolvedItems.push({
+        id: mi.id,
+        qty,
+        price: mi.price,
+        name: mi.name,
+        prepTime: mi.preparation_time_minutes,
+        remaining: avail.quantity_remaining,
+        prepared: avail.quantity_prepared || mi.daily_capacity
+      })
     }
 
     // Get current queue length for slot assignment
@@ -75,25 +106,23 @@ orders.post('/', async (c) => {
     
     const orderId = orderResult.meta.last_row_id as number
 
-    // Insert order items
+    // Insert order items & atomically update stock
     for (const item of resolvedItems) {
       await c.env.DB.prepare(`
         INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, subtotal)
         VALUES (?, ?, ?, ?, ?)
       `).bind(orderId, item.id, item.qty, item.price, item.price * item.qty).run()
 
-      // Update sold quantity in availability
+      const newRemaining = Math.max(0, item.remaining - item.qty)
+      const newStatus = newRemaining <= 0 ? 'sold_out' : (newRemaining * 100.0 / Math.max(1, item.prepared) <= 20 ? 'running_low' : 'available')
+
       await c.env.DB.prepare(`
         UPDATE menu_availability SET
           quantity_sold = quantity_sold + ?,
           quantity_remaining = MAX(0, quantity_remaining - ?),
-          status = CASE 
-            WHEN quantity_remaining - ? <= 0 THEN 'sold_out'
-            WHEN (quantity_remaining - ?) * 100.0 / NULLIF(quantity_prepared, 0) <= 20 THEN 'running_low'
-            ELSE 'available'
-          END
+          status = ?
         WHERE menu_item_id = ? AND date = ? AND time_slot = ?
-      `).bind(item.qty, item.qty, item.qty, item.qty, item.id, today, timeSlot).run()
+      `).bind(item.qty, item.qty, newStatus, item.id, today, timeSlot).run()
     }
 
     // Add to queue
