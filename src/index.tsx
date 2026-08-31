@@ -468,7 +468,15 @@ function escapeHtml(s) {
 function authFetch(url, options) {
   const token = sessionStorage.getItem('token') || '';
   const opts = options || {};
-  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } });
+  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } })
+    .then(res => {
+      if (res.status === 401) {
+        // Unauthorized: clear session and redirect to login
+        sessionStorage.clear();
+        window.location.href = '/login';
+      }
+      return res;
+    });
 }
 function logout() { sessionStorage.clear(); window.location.href = '/login'; }
 // ────────────────────────────────────────────────────────────────────────────
@@ -1427,7 +1435,7 @@ async function loadDashboard() {
 async function loadForecastSummary() {
   const slot = document.getElementById('forecast-slot-sel')?.value || 'lunch';
   try {
-    const res = await fetch('/api/forecast/predict?slot=' + slot);
+    const res = await authFetch('/api/forecast/predict?slot=' + slot);
     const data = await res.json();
     const forecasts = (data.forecasts || []).slice(0, 10);
     let html = '<table class="w-full text-sm"><thead><tr class="text-left text-xs text-gray-500 border-b">';
@@ -1559,7 +1567,7 @@ async function loadAnalytics() {
 async function loadFullForecast() {
   const slot = document.getElementById('af-slot')?.value || 'lunch';
   try {
-    const res = await fetch('/api/forecast/predict?slot=' + slot);
+    const res = await authFetch('/api/forecast/predict?slot=' + slot);
     const data = await res.json();
     let html = '<table class="w-full text-sm"><thead><tr class="text-left text-xs text-gray-500 border-b">';
     html += '<th class="pb-2">Item</th><th class="pb-2">Predicted</th><th class="pb-2">Actual</th><th class="pb-2">Trend</th><th class="pb-2">Confidence</th><th class="pb-2 max-w-xs">Recommendation</th></tr></thead><tbody>';
@@ -1578,7 +1586,7 @@ async function loadFullForecast() {
 
 async function loadUsers() {
   try {
-    const res = await fetch('/api/auth/users');
+    const res = await authFetch('/api/auth/users');
     const data = await res.json();
     const roleColors = { admin: 'bg-purple-100 text-purple-700', kitchen: 'bg-blue-100 text-blue-700', staff: 'bg-green-100 text-green-700', student: 'bg-gray-100 text-gray-600' };
     let html = '';
