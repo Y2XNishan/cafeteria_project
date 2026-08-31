@@ -265,7 +265,7 @@ orders.patch('/:id/status', async (c) => {
 // Get all active orders (kitchen/admin)
 orders.get('/active/all', async (c) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
+    const today = c.req.query('date') || new Date().toISOString().split('T')[0]
     const timeSlot = c.req.query('slot') || 'lunch'
     const { results } = await c.env.DB.prepare(`
       SELECT o.*, u.name as user_name, u.student_id,
@@ -281,7 +281,7 @@ orders.get('/active/all', async (c) => {
       GROUP BY o.id
       ORDER BY qe.queue_position ASC
     `).bind(today, timeSlot).all()
-    return c.json({ orders: results, count: results.length })
+    return c.json({ orders: results, count: results.length, date: today, timeSlot })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
@@ -290,21 +290,21 @@ orders.get('/active/all', async (c) => {
 // Get today's stats (admin)
 orders.get('/stats/today', async (c) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
+    const today = c.req.query('date') || new Date().toISOString().split('T')[0]
     const stats = await c.env.DB.prepare(`
       SELECT
         COUNT(*) as total_orders,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN status IN ('confirmed','preparing','pending') THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
-        SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as ready,
-        ROUND(SUM(total_amount), 2) as total_revenue,
-        ROUND(AVG(estimated_wait_minutes), 1) as avg_wait_minutes
+        COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed,
+        COALESCE(SUM(CASE WHEN status IN ('confirmed','preparing','pending') THEN 1 ELSE 0 END), 0) as active,
+        COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled,
+        COALESCE(SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END), 0) as ready,
+        COALESCE(ROUND(SUM(total_amount), 2), 0) as total_revenue,
+        COALESCE(ROUND(AVG(estimated_wait_minutes), 1), 0) as avg_wait_minutes
       FROM orders WHERE DATE(created_at) = ?
     `).bind(today).first()
 
     const slotBreakdown = await c.env.DB.prepare(`
-      SELECT time_slot, COUNT(*) as count, SUM(total_amount) as revenue
+      SELECT time_slot, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue
       FROM orders WHERE DATE(created_at) = ? GROUP BY time_slot
     `).bind(today).all()
 
