@@ -205,29 +205,58 @@ orders.get('/:id', async (c) => {
 orders.patch('/:id/status', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
+    if (isNaN(id)) return c.json({ error: 'Invalid order ID' }, 400)
     const { status } = await c.req.json()
     const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
     if (!validStatuses.includes(status)) return c.json({ error: 'Invalid status' }, 400)
+
+    const existingOrder = await c.env.DB.prepare(
+      'SELECT id, user_id, order_number, time_slot, pickup_slot, status, created_at FROM orders WHERE id = ?'
+    ).bind(id).first<any>()
+
+    if (!existingOrder) return c.json({ error: 'Order not found' }, 404)
+
+    // If cancelling an active order, restore inventory
+    if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+      const orderDate = existingOrder.created_at ? existingOrder.created_at.split(' ')[0] : new Date().toISOString().split('T')[0]
+      const { results: orderItems } = await c.env.DB.prepare(
+        'SELECT menu_item_id, quantity FROM order_items WHERE order_id = ?'
+      ).bind(id).all<any>()
+
+      for (const item of orderItems) {
+        await c.env.DB.prepare(`
+          UPDATE menu_availability SET
+            quantity_sold = MAX(0, quantity_sold - ?),
+            quantity_remaining = quantity_remaining + ?,
+            status = CASE 
+              WHEN (quantity_remaining + ?) * 100.0 / NULLIF(quantity_prepared, 0) <= 20 THEN 'running_low'
+              ELSE 'available'
+            END
+          WHERE menu_item_id = ? AND date = ? AND time_slot = ?
+        `).bind(item.quantity, item.quantity, item.quantity, item.menu_item_id, orderDate, existingOrder.time_slot).run()
+      }
+    }
 
     await c.env.DB.prepare(
       "UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
     ).bind(status, id).run()
 
     // Update queue entry status
-    const queueStatus = status === 'ready' ? 'ready' : status === 'completed' ? 'collected' : status === 'preparing' ? 'processing' : 'waiting'
+    const queueStatus = status === 'ready' ? 'ready' : status === 'completed' ? 'collected' : status === 'preparing' ? 'processing' : status === 'cancelled' ? 'cancelled' : 'waiting'
     await c.env.DB.prepare("UPDATE queue_entries SET status = ? WHERE order_id = ?").bind(queueStatus, id).run()
 
-    // If ready - send notification
+    // Notifications
     if (status === 'ready') {
-      const order = await c.env.DB.prepare('SELECT user_id, order_number, pickup_slot FROM orders WHERE id = ?').bind(id).first<any>()
-      if (order) {
-        await c.env.DB.prepare(`
-          INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_ready', '🍽️ Order Ready!', ?)
-        `).bind(order.user_id, id, `Your order ${order.order_number} is ready! Pickup at: ${order.pickup_slot}`).run()
-      }
+      await c.env.DB.prepare(`
+        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_ready', '🍽️ Order Ready!', ?)
+      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} is ready! Pickup at: ${existingOrder.pickup_slot}`).run()
+    } else if (status === 'cancelled') {
+      await c.env.DB.prepare(`
+        INSERT INTO notifications (user_id, order_id, type, title, message) VALUES (?, ?, 'order_delayed', 'Order Cancelled', ?)
+      `).bind(existingOrder.user_id, id, `Your order ${existingOrder.order_number} was cancelled.`).run()
     }
 
-    return c.json({ success: true, status })
+    return c.json({ success: true, status, orderNumber: existingOrder.order_number })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
