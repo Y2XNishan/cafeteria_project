@@ -129,6 +129,22 @@ orders.post('/', async (c) => {
           status = ?
         WHERE menu_item_id = ? AND date = ? AND time_slot = ?
       `).bind(item.qty, item.qty, newStatus, item.id, today, timeSlot).run()
+
+      // Trigger low stock surge alert if stock is critical
+      if (newStatus === 'sold_out' || newStatus === 'running_low') {
+        const existingStockAlert = await c.env.DB.prepare(
+          "SELECT id FROM surge_alerts WHERE menu_item_id = ? AND time_slot = ? AND date = ? AND alert_type = 'low_stock' AND is_resolved = 0"
+        ).bind(item.id, timeSlot, today).first()
+        if (!existingStockAlert) {
+          const alertMsg = newStatus === 'sold_out'
+            ? `${item.name} is SOLD OUT for ${timeSlot}. Prep replenishment recommended.`
+            : `${item.name} is RUNNING LOW (${newRemaining} remaining) for ${timeSlot}.`
+          await c.env.DB.prepare(`
+            INSERT INTO surge_alerts (time_slot, date, menu_item_id, alert_type, message, is_resolved)
+            VALUES (?, ?, ?, 'low_stock', ?, 0)
+          `).bind(timeSlot, today, item.id, alertMsg).run()
+        }
+      }
     }
 
     // Add to queue
