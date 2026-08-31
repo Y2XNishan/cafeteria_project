@@ -11,6 +11,7 @@ const notifications = new Hono<{ Bindings: Bindings }>()
 notifications.get('/user/:userId', async (c) => {
   try {
     const userId = parseInt(c.req.param('userId'))
+    if (isNaN(userId)) return c.json({ error: 'Invalid user ID' }, 400)
     const { results } = await c.env.DB.prepare(`
       SELECT n.*, o.order_number
       FROM notifications n
@@ -30,8 +31,9 @@ notifications.get('/user/:userId', async (c) => {
 notifications.patch('/:id/read', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
+    if (isNaN(id)) return c.json({ error: 'Invalid notification ID' }, 400)
     await c.env.DB.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').bind(id).run()
-    return c.json({ success: true })
+    return c.json({ success: true, message: 'Marked as read' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
@@ -41,8 +43,21 @@ notifications.patch('/:id/read', async (c) => {
 notifications.patch('/user/:userId/read-all', async (c) => {
   try {
     const userId = parseInt(c.req.param('userId'))
+    if (isNaN(userId)) return c.json({ error: 'Invalid user ID' }, 400)
     await c.env.DB.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').bind(userId).run()
-    return c.json({ success: true })
+    return c.json({ success: true, message: 'All notifications marked as read' })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Delete single notification
+notifications.delete('/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    if (isNaN(id)) return c.json({ error: 'Invalid notification ID' }, 400)
+    await c.env.DB.prepare('DELETE FROM notifications WHERE id = ?').bind(id).run()
+    return c.json({ success: true, message: 'Notification deleted' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
