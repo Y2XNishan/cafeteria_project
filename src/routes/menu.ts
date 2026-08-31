@@ -72,17 +72,23 @@ menu.get('/', async (c) => {
 menu.get('/:id', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
+    if (isNaN(id)) return c.json({ error: 'Invalid item ID' }, 400)
     const today = new Date().toISOString().split('T')[0]
+    const slot = c.req.query('slot') || 'lunch'
+
     const item = await c.env.DB.prepare(`
       SELECT mi.*, c.name as category_name,
-             ma.quantity_prepared, ma.quantity_sold, ma.quantity_remaining, ma.status,
+             COALESCE(ma.quantity_prepared, mi.daily_capacity) as quantity_prepared,
+             COALESCE(ma.quantity_sold, 0) as quantity_sold,
+             COALESCE(ma.quantity_remaining, mi.daily_capacity) as quantity_remaining,
+             COALESCE(ma.status, 'available') as status,
              df.predicted_quantity, df.confidence_score
       FROM menu_items mi
       JOIN categories c ON mi.category_id = c.id
-      LEFT JOIN menu_availability ma ON ma.menu_item_id = mi.id AND ma.date = ? AND ma.time_slot = 'lunch'
-      LEFT JOIN demand_forecasts df ON df.menu_item_id = mi.id AND df.forecast_date = ? AND df.time_slot = 'lunch'
+      LEFT JOIN menu_availability ma ON ma.menu_item_id = mi.id AND ma.date = ? AND ma.time_slot = ?
+      LEFT JOIN demand_forecasts df ON df.menu_item_id = mi.id AND df.forecast_date = ? AND df.time_slot = ?
       WHERE mi.id = ?
-    `).bind(today, today, id).first()
+    `).bind(today, slot, today, slot, id).first()
     if (!item) return c.json({ error: 'Item not found' }, 404)
     return c.json({ item })
   } catch (e: any) {
