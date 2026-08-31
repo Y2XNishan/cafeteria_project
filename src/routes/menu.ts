@@ -8,17 +8,34 @@ type Bindings = { DB: D1Database }
 
 const menu = new Hono<{ Bindings: Bindings }>()
 
+// Helper to ensure daily availability rows exist for active menu items
+export async function ensureDailyAvailability(db: D1Database, date: string, timeSlot: string) {
+  try {
+    await db.prepare(`
+      INSERT OR IGNORE INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
+      SELECT id, ?, ?, daily_capacity, 0, daily_capacity, 'available'
+      FROM menu_items
+      WHERE is_active = 1
+    `).bind(date, timeSlot).run()
+  } catch (e) {
+    console.error('Error auto-initializing menu availability:', e)
+  }
+}
+
 // Get full menu with today's availability
 menu.get('/', async (c) => {
   try {
     const today = new Date().toISOString().split('T')[0]
     const timeSlot = c.req.query('slot') || 'lunch'
 
+    // Auto-initialize today's stock if missing
+    await ensureDailyAvailability(c.env.DB, today, timeSlot)
+
     const { results: items } = await c.env.DB.prepare(`
       SELECT mi.id, mi.name, mi.description, mi.price, mi.preparation_time_minutes,
              mi.daily_capacity, mi.image_url, mi.is_active,
              c.name as category_name, c.id as category_id,
-             COALESCE(ma.quantity_prepared, 0) as quantity_prepared,
+             COALESCE(ma.quantity_prepared, mi.daily_capacity) as quantity_prepared,
              COALESCE(ma.quantity_sold, 0) as quantity_sold,
              COALESCE(ma.quantity_remaining, mi.daily_capacity) as quantity_remaining,
              COALESCE(ma.status, 'available') as status
