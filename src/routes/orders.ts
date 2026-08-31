@@ -143,6 +143,19 @@ orders.post('/', async (c) => {
       VALUES (?, ?, 'order_ready', 'Order Confirmed!', ?)
     `).bind(userId, orderId, `Your order ${orderNumber} is confirmed. Pickup slot: ${pickupSlot}. Est. wait: ${estimatedWait} mins.`).run()
 
+    // Dynamic high queue surge alert trigger
+    if (queuePos + 1 >= 8) {
+      const existingAlert = await c.env.DB.prepare(
+        "SELECT id FROM surge_alerts WHERE time_slot = ? AND date = ? AND alert_type = 'high_queue' AND is_resolved = 0"
+      ).bind(timeSlot, today).first()
+      if (!existingAlert) {
+        await c.env.DB.prepare(`
+          INSERT INTO surge_alerts (time_slot, date, menu_item_id, alert_type, message, is_resolved)
+          VALUES (?, ?, NULL, 'high_queue', ?, 0)
+        `).bind(timeSlot, today, `Queue length reached ${queuePos + 1} orders for ${timeSlot}. Est. wait ~${estimatedWait} mins.`).run()
+      }
+    }
+
     return c.json({
       success: true,
       order: {
