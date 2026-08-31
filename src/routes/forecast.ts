@@ -149,7 +149,7 @@ forecast.get('/weekly', async (c) => {
         o.time_slot,
         SUM(oi.quantity) as total_sold,
         COUNT(DISTINCT DATE(o.created_at)) as days_active,
-        ROUND(AVG(oi.quantity), 1) as avg_per_day
+        ROUND(SUM(oi.quantity) * 1.0 / MAX(1, COUNT(DISTINCT DATE(o.created_at))), 1) as avg_per_day
       FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
       JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -169,14 +169,15 @@ forecast.get('/top-items', async (c) => {
   try {
     const limit = parseInt(c.req.query('limit') || '5')
     const { results } = await c.env.DB.prepare(`
-      SELECT mi.name, mi.price, SUM(oi.quantity) as total_sold,
-             SUM(oi.subtotal) as total_revenue,
+      SELECT mi.name, mi.price,
+             COALESCE(SUM(oi.quantity), 0) as total_sold,
+             COALESCE(ROUND(SUM(oi.subtotal), 2), 0) as total_revenue,
              COUNT(DISTINCT oi.order_id) as times_ordered
       FROM order_items oi
       JOIN menu_items mi ON mi.id = oi.menu_item_id
       JOIN orders o ON o.id = oi.order_id
       WHERE o.status != 'cancelled'
-      GROUP BY mi.id
+      GROUP BY mi.id, mi.name, mi.price
       ORDER BY total_sold DESC
       LIMIT ?
     `).bind(limit).all()
