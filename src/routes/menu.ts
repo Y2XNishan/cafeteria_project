@@ -175,9 +175,19 @@ menu.post('/', async (c) => {
 menu.patch('/:id/toggle', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
-    await c.env.DB.prepare('UPDATE menu_items SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?').bind(id).run()
-    const item = await c.env.DB.prepare('SELECT id, name, is_active FROM menu_items WHERE id = ?').bind(id).first()
-    return c.json({ success: true, item })
+    if (isNaN(id)) return c.json({ error: 'Invalid item ID' }, 400)
+
+    const existing = await c.env.DB.prepare('SELECT id, name, is_active FROM menu_items WHERE id = ?').bind(id).first<any>()
+    if (!existing) return c.json({ error: 'Menu item not found' }, 404)
+
+    const newStatus = existing.is_active === 1 ? 0 : 1
+    await c.env.DB.prepare('UPDATE menu_items SET is_active = ? WHERE id = ?').bind(newStatus, id).run()
+
+    return c.json({
+      success: true,
+      item: { id, name: existing.name, is_active: newStatus },
+      message: `Item "${existing.name}" is now ${newStatus === 1 ? 'active' : 'inactive'}`
+    })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
@@ -188,6 +198,21 @@ menu.get('/categories/all', async (c) => {
   try {
     const { results } = await c.env.DB.prepare('SELECT * FROM categories WHERE is_active = 1 ORDER BY display_order').all()
     return c.json({ categories: results })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// Add category (admin)
+menu.post('/categories', async (c) => {
+  try {
+    const { name, description, displayOrder } = await c.req.json()
+    if (!name || typeof name !== 'string') return c.json({ error: 'Category name is required' }, 400)
+    const result = await c.env.DB.prepare(
+      'INSERT INTO categories (name, description, display_order, is_active) VALUES (?, ?, ?, 1)'
+    ).bind(name.trim(), description || '', displayOrder || 0).run()
+    const newId = result.meta.last_row_id || (result.meta as any).lastRowId
+    return c.json({ success: true, id: newId, message: 'Category created' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
