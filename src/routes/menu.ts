@@ -135,12 +135,37 @@ menu.put('/:id/availability', async (c) => {
 // Add menu item (admin)
 menu.post('/', async (c) => {
   try {
-    const { categoryId, name, description, price, preparationTime, dailyCapacity } = await c.req.json()
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Invalid request payload' }, 400)
+    }
+    const { categoryId, name, description, price, preparationTime, dailyCapacity } = body
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return c.json({ error: 'Item name is required' }, 400)
+    }
+    const parsedPrice = parseFloat(price)
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      return c.json({ error: 'Price must be greater than 0' }, 400)
+    }
+    const parsedCatId = parseInt(categoryId)
+    if (isNaN(parsedCatId) || parsedCatId <= 0) {
+      return c.json({ error: 'Valid category is required' }, 400)
+    }
+    const prepMins = Math.max(1, parseInt(preparationTime) || 5)
+    const cap = Math.max(1, parseInt(dailyCapacity) || 50)
+
     const result = await c.env.DB.prepare(`
       INSERT INTO menu_items (category_id, name, description, price, preparation_time_minutes, daily_capacity)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(categoryId, name, description, price, preparationTime || 5, dailyCapacity || 50).run()
-    return c.json({ success: true, id: result.meta.last_row_id })
+    `).bind(parsedCatId, name.trim(), (description || '').trim(), parsedPrice, prepMins, cap).run()
+
+    const newId = result.meta.last_row_id || (result.meta as any).lastRowId
+
+    return c.json({
+      success: true,
+      id: newId,
+      message: 'Menu item created successfully'
+    })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
