@@ -34,9 +34,24 @@ forecast.get('/predict', async (c) => {
         ORDER BY order_date ASC
       `).bind(item.id, timeSlot, dateStr, dateStr).all<{ order_date: string; qty: number }>()
 
-      const historicalCounts = history.length > 0
-        ? history.map(h => h.qty)
-        : [Math.round(item.daily_capacity * 0.6)] // default if no history
+      const historyMap = new Map<string, number>()
+      for (const h of history) {
+        historyMap.set(h.order_date, h.qty)
+      }
+
+      // Build continuous chronological data points
+      const paddedCounts: number[] = []
+      for (let i = 14; i >= 1; i--) {
+        const d = new Date(targetDate.getTime() - i * 24 * 3600 * 1000)
+        const dStr = d.toISOString().split('T')[0]
+        if (historyMap.has(dStr)) {
+          paddedCounts.push(historyMap.get(dStr)!)
+        }
+      }
+
+      const historicalCounts = paddedCounts.length > 0
+        ? paddedCounts
+        : (history.length > 0 ? history.map(h => h.qty) : [Math.round(item.daily_capacity * 0.6)])
 
       const { predicted, confidence, trend } = forecastDemand(
         historicalCounts, targetDate, timeSlot, item.daily_capacity
