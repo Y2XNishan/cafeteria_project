@@ -32,17 +32,28 @@ export async function verifyPassword(inputPassword: string, storedHash: string):
 // Login – validates credentials and returns a signed JWT
 auth.post('/login', async (c) => {
   try {
-    const { email, password } = await c.req.json()
-    if (!email || !password) return c.json({ error: 'Email and password required' }, 400)
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Invalid request payload' }, 400)
+    }
+    const { email, password } = body
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return c.json({ error: 'Valid email and password are required' }, 400)
+    }
+
+    const trimmedEmail = email.trim().toLowerCase()
+    if (!trimmedEmail.includes('@') || trimmedEmail.length < 5) {
+      return c.json({ error: 'Please enter a valid email address' }, 400)
+    }
 
     const user = await c.env.DB.prepare(
-      'SELECT id, name, email, role, student_id, password_hash FROM users WHERE LOWER(email) = LOWER(?)'
-    ).bind(email.trim()).first<{
+      'SELECT id, name, email, role, student_id, password_hash FROM users WHERE LOWER(email) = ?'
+    ).bind(trimmedEmail).first<{
       id: number; name: string; email: string
       role: string; student_id: string; password_hash: string
     }>()
 
-    if (!user) return c.json({ error: 'Invalid credentials' }, 401)
+    if (!user) return c.json({ error: 'Invalid email or password' }, 401)
 
     const isValid = await verifyPassword(password, user.password_hash)
     if (!isValid) {
