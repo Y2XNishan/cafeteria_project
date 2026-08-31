@@ -15,8 +15,8 @@ function generateOrderNumber(): string {
   return `ORD-${dateStr}-${rand}`
 }
 
-// Calculate pickup slot based on queue position
-function assignPickupSlot(queuePos: number, timeSlot: string, slotIntervalMins: number = 15, maxPerSlot: number = 20): string {
+// Calculate pickup slot based on queue position and current operating window
+export function assignPickupSlot(queuePos: number, timeSlot: string, slotIntervalMins: number = 15, maxPerSlot: number = 20): string {
   const slotIndex = Math.floor(queuePos / maxPerSlot)
   const slotStarts: Record<string, number[]> = {
     breakfast: [7, 0],
@@ -24,11 +24,17 @@ function assignPickupSlot(queuePos: number, timeSlot: string, slotIntervalMins: 
     dinner: [17, 30],
   }
   const [baseHour, baseMin] = slotStarts[timeSlot] || [12, 0]
-  const totalMins = baseHour * 60 + baseMin + slotIndex * slotIntervalMins
-  const startH = Math.floor(totalMins / 60)
+  const baseMins = baseHour * 60 + baseMin
+
+  const now = new Date()
+  const currentTotalMins = now.getHours() * 60 + now.getMinutes()
+  const startWindowMins = Math.max(baseMins, Math.ceil((currentTotalMins + 5) / slotIntervalMins) * slotIntervalMins)
+
+  const totalMins = startWindowMins + slotIndex * slotIntervalMins
+  const startH = Math.floor(totalMins / 60) % 24
   const startM = totalMins % 60
   const endMins = totalMins + slotIntervalMins
-  const endH = Math.floor(endMins / 60)
+  const endH = Math.floor(endMins / 60) % 24
   const endM = endMins % 60
   return `${String(startH).padStart(2,'0')}:${String(startM).padStart(2,'0')}-${String(endH).padStart(2,'0')}:${String(endM).padStart(2,'0')}`
 }
