@@ -78,16 +78,23 @@ export function calculateConfidence(historicalValues: number[]): number {
  * Detect demand trend from historical data
  */
 export function detectTrend(historicalValues: number[]): 'rising' | 'stable' | 'falling' {
-  if (historicalValues.length < 2) return 'stable'
-  const recent = historicalValues.slice(-3)
-  const older = historicalValues.slice(0, -3)
-  if (!older.length) return 'stable'
-  const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length
-  const olderAvg = older.reduce((a, b) => a + b, 0) / older.length
-  if (olderAvg === 0) return 'stable'
-  const changePct = (recentAvg - olderAvg) / olderAvg
-  if (changePct > 0.1) return 'rising'
-  if (changePct < -0.1) return 'falling'
+  if (!historicalValues || historicalValues.length < 2) return 'stable'
+  const valid = historicalValues.filter(v => typeof v === 'number' && !isNaN(v))
+  if (valid.length < 2) return 'stable'
+
+  const half = Math.floor(valid.length / 2)
+  const firstHalf = valid.slice(0, half)
+  const secondHalf = valid.slice(half)
+
+  const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length
+  const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length
+
+  if (firstAvg === 0 && secondAvg === 0) return 'stable'
+  if (firstAvg === 0 && secondAvg > 0) return 'rising'
+
+  const changePct = (secondAvg - firstAvg) / Math.max(1, firstAvg)
+  if (changePct > 0.12) return 'rising'
+  if (changePct < -0.12) return 'falling'
   return 'stable'
 }
 
