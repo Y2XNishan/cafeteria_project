@@ -127,14 +127,31 @@ export function generateRecommendation(
   trend: 'rising' | 'stable' | 'falling',
   confidence: number
 ): string {
-  const remaining = prepared - sold
+  const remaining = Math.max(0, prepared - sold)
   const soldPct = prepared > 0 ? (sold / prepared) * 100 : 0
-  
-  if (soldPct >= 90) return `⚠️ Critically low stock! Prepare ${Math.round(predicted * 0.5)} more units immediately.`
-  if (soldPct >= 70 && trend === 'rising') return `📈 High demand & rising trend. Recommend preparing ${Math.round(predicted * 0.4)} extra units.`
-  if (trend === 'falling') return `📉 Demand falling. Reduce tomorrow's prep by ~15% to minimize waste.`
-  if (remaining > predicted * 0.5) return `✅ Well-stocked. Consider reducing tomorrow's prep by ~10%.`
-  return `✅ On track. Maintain current preparation of ~${predicted} units.`
+  const prepDeficit = predicted - prepared
+
+  if (soldPct >= 95 || remaining <= 2) {
+    const replenish = Math.max(5, Math.round(predicted * 0.4))
+    return `⚠️ Sold out or critical (<2 left). Prepare +${replenish} units immediately for upcoming rush.`
+  }
+  if (soldPct >= 75 && trend === 'rising') {
+    const extra = Math.max(4, Math.round(predicted * 0.3))
+    return `📈 High demand surge & rising trend (${soldPct.toFixed(0)}% sold). Recommend +${extra} extra units.`
+  }
+  if (prepDeficit > 10 && remaining < 15) {
+    return `⚡ Forecast is ${predicted} units, but only ${prepared} prepared. Prep +${prepDeficit} more to meet target.`
+  }
+  if (trend === 'falling' && remaining > predicted * 0.4) {
+    return `📉 Demand trending down. Reduce next cycle prep by ~15% to minimize food waste.`
+  }
+  if (remaining > predicted * 0.7 && soldPct < 30) {
+    return `✅ Well-stocked (${remaining} remaining). Hold further batch cooking for this slot.`
+  }
+  if (confidence >= 0.85) {
+    return `✅ High forecast confidence (${Math.round(confidence * 100)}%). Maintain preparation target at ~${predicted} units.`
+  }
+  return `✅ On track. Maintain steady preparation of ~${predicted} units.`
 }
 
 /**
