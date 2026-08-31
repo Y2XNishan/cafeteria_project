@@ -28,7 +28,8 @@ export const requireAuth = createMiddleware<Env>(async (c, next) => {
     return c.json({ error: 'Unauthorized – missing or malformed token' }, 401)
   }
   try {
-    const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET) as unknown as JWTPayload
+    const secret = c.env.JWT_SECRET || 'smartcafe-default-dev-secret-key-2026'
+    const payload = await verify(authHeader.slice(7), secret, 'HS256') as unknown as JWTPayload
     c.set('jwtPayload', payload)
   } catch {
     return c.json({ error: 'Unauthorized – invalid or expired token' }, 401)
