@@ -237,13 +237,32 @@ orders.patch('/:id/status', async (c) => {
       }
     }
 
-    await c.env.DB.prepare(
-      "UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-    ).bind(status, id).run()
+    // Calculate actual wait time if completed
+    let actualWait: number | null = null
+    if (status === 'completed' && existingOrder.created_at) {
+      const createdTime = new Date(existingOrder.created_at.includes('T') ? existingOrder.created_at : existingOrder.created_at.replace(' ', 'T') + 'Z').getTime()
+      if (!isNaN(createdTime)) {
+        actualWait = Math.max(1, Math.round((Date.now() - createdTime) / 60000))
+      }
+    }
 
-    // Update queue entry status
+    if (actualWait !== null) {
+      await c.env.DB.prepare(
+        "UPDATE orders SET status = ?, actual_wait_minutes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      ).bind(status, actualWait, id).run()
+    } else {
+      await c.env.DB.prepare(
+        "UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      ).bind(status, id).run()
+    }
+
+    // Update queue entry status and actual_ready_at
     const queueStatus = status === 'ready' ? 'ready' : status === 'completed' ? 'collected' : status === 'preparing' ? 'processing' : status === 'cancelled' ? 'cancelled' : 'waiting'
-    await c.env.DB.prepare("UPDATE queue_entries SET status = ? WHERE order_id = ?").bind(queueStatus, id).run()
+    if (status === 'ready' || status === 'completed') {
+      await c.env.DB.prepare("UPDATE queue_entries SET status = ?, actual_ready_at = COALESCE(actual_ready_at, CURRENT_TIMESTAMP) WHERE order_id = ?").bind(queueStatus, id).run()
+    } else {
+      await c.env.DB.prepare("UPDATE queue_entries SET status = ? WHERE order_id = ?").bind(queueStatus, id).run()
+    }
 
     // Notifications
     if (status === 'ready') {
