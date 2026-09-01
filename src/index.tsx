@@ -749,7 +749,10 @@ async function markAllRead() {
 function showToast(title, msg, color = 'green') {
   const t = document.getElementById('toast');
   const colors = { green: 'border-green-500', red: 'border-red-500', orange: 'border-orange-500' };
+  const icons  = { green: 'fas fa-check-circle text-green-500', red: 'fas fa-exclamation-circle text-red-500', orange: 'fas fa-exclamation-triangle text-orange-500' };
   t.querySelector('.toast').className = 'toast bg-white rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-sm border-l-4 ' + (colors[color] || colors.green);
+  t.querySelector('.toast > i').className = icons[color] || icons.green;
+  t.querySelector('.toast > i').style.fontSize = '1.25rem';
   document.getElementById('toast-title').textContent = title;
   document.getElementById('toast-msg').textContent = msg;
   t.classList.remove('hidden');
