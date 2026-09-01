@@ -562,7 +562,10 @@ async function loadMenu() {
       html += '</div></div>';
     }
     document.getElementById('menu-container').innerHTML = html || '<p class="text-gray-400 text-center py-8">No items available</p>';
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error('loadMenu error:', e);
+    document.getElementById('menu-container').innerHTML = '<div class="flex flex-col items-center justify-center py-16 text-center"><i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i><p class="text-gray-600 font-medium">Failed to load menu</p><p class="text-sm text-gray-400 mb-4">Please check your connection and try again</p><button onclick="loadMenu()" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm"><i class="fas fa-redo mr-2"></i>Retry</button></div>';
+  }
 }
 
 function changeQty(itemId, delta) {
