@@ -1357,11 +1357,7 @@ function escapeHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
-function authFetch(url, options) {
-  const token = sessionStorage.getItem('token') || '';
-  const opts = options || {};
-  return fetch(url, { ...opts, headers: { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token } });
-}
+
 // ────────────────────────────────────────────────────────────────────────────
 let slotChart, weeklyChart;
 
