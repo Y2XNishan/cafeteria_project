@@ -656,7 +656,7 @@ async function loadQueueStatus() {
     document.getElementById('banner-next-slot').textContent = data.nextAvailableSlot || '--';
     if (data.isSurge) document.getElementById('banner-surge').classList.remove('hidden');
     else document.getElementById('banner-surge').classList.add('hidden');
-  } catch(e) {}
+  } catch(e) { console.error('loadQueueStatus error:', e); }
 }
 
 async function loadQueueSection() {
