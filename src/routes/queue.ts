@@ -70,6 +70,7 @@ queue.get('/status', async (c) => {
 queue.get('/position/:orderId', async (c) => {
   try {
     const orderId = parseInt(c.req.param('orderId'))
+    if (isNaN(orderId)) return c.json({ error: 'Invalid order ID' }, 400)
     const entry = await c.env.DB.prepare(`
       SELECT qe.*, o.order_number, o.status, o.pickup_slot, o.estimated_wait_minutes
       FROM queue_entries qe
@@ -104,6 +105,7 @@ queue.get('/alerts', async (c) => {
 queue.patch('/alerts/:id/resolve', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
+    if (isNaN(id)) return c.json({ error: 'Invalid alert ID' }, 400)
     await c.env.DB.prepare('UPDATE surge_alerts SET is_resolved = 1 WHERE id = ?').bind(id).run()
     return c.json({ success: true })
   } catch (e: any) {
