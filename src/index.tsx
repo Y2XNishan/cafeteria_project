@@ -264,7 +264,11 @@ function studentDashboardHTML(): string {
   .tab-btn { transition: all 0.2s; }
   .tab-btn.active { background: #1d4ed8; color: white; box-shadow: 0 4px 12px rgba(29,78,216,0.3); }
   .notification-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; position: absolute; top: 2px; right: 2px; }
-  @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0 !important; } }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .sidebar.open { display: flex !important; position: fixed; inset: 0; z-index: 50; width: 16rem; }
+    .main-content { margin-left: 0 !important; }
+  }
 </style>
 </head>
 <body class="bg-gray-50">
@@ -329,9 +333,14 @@ function studentDashboardHTML(): string {
   <main class="flex-1 overflow-y-auto main-content" id="main-scroll">
     <!-- Top Bar -->
     <div class="bg-white shadow-sm px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-      <div>
-        <h2 class="text-xl font-bold text-gray-800" id="page-title">Order Food</h2>
-        <p class="text-sm text-gray-500" id="page-subtitle">Browse today's menu and place your order</p>
+      <div class="flex items-center gap-3">
+        <button onclick="toggleMobileSidebar()" class="md:hidden text-gray-700 hover:text-blue-600 text-xl focus:outline-none p-1" aria-label="Toggle navigation menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div>
+          <h2 class="text-xl font-bold text-gray-800" id="page-title">Order Food</h2>
+          <p class="text-sm text-gray-500" id="page-subtitle">Browse today's menu and place your order</p>
+        </div>
       </div>
       <div class="flex items-center gap-4">
         <!-- Time Slot Selector -->
@@ -498,7 +507,12 @@ window.addEventListener('load', () => {
   setInterval(loadQueueStatus, 30000); // Auto-refresh every 30s
 });
 
+function toggleMobileSidebar() {
+  document.querySelector('.sidebar')?.classList.toggle('open');
+}
+
 function showSection(sec) {
+  document.querySelector('.sidebar')?.classList.remove('open');
   ['order','queue','my-orders','notifications'].forEach(s => {
     document.getElementById('section-' + s).classList.add('hidden');
     document.getElementById('nav-' + s)?.classList.remove('active');
