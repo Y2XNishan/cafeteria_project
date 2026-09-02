@@ -923,14 +923,18 @@ let currentSlot = 'lunch';
 let refreshTimer;
 
 function setSlot(slot) {
+  if (currentSlot === slot) return;
   currentSlot = slot;
   ['breakfast','lunch','dinner'].forEach(s => {
-    document.getElementById('ktab-' + s).classList.remove('active');
-    document.getElementById('ktab-' + s).classList.add('text-slate-400');
+    document.getElementById('ktab-' + s)?.classList.remove('active');
+    document.getElementById('ktab-' + s)?.classList.add('text-slate-400');
   });
-  document.getElementById('ktab-' + slot).classList.add('active');
-  document.getElementById('ktab-' + slot).classList.remove('text-slate-400');
-  refreshAll();
+  document.getElementById('ktab-' + slot)?.classList.add('active');
+  document.getElementById('ktab-' + slot)?.classList.remove('text-slate-400');
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    refreshAll();
+  }, 150);
 }
 
 async function refreshAll() {
