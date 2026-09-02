@@ -1082,7 +1082,10 @@ async function loadStockStatus() {
       }
     }
     document.getElementById('stock-list').innerHTML = html || '<p class="text-slate-500 text-sm text-center py-4">No stock data</p>';
-  } catch(e) {}
+  } catch(e) {
+    console.error('loadStockStatus error:', e);
+    document.getElementById('stock-list').innerHTML = '<p class="text-red-400 text-xs text-center py-4">Failed to load stock data</p>';
+  }
 }
 
 // Live clock
