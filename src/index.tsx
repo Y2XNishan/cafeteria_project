@@ -297,18 +297,18 @@ function studentDashboardHTML(): string {
       </div>
     </div>
 
-    <nav class="flex-1 space-y-1">
-      <a href="#" onclick="showSection('order')" class="nav-link active flex items-center gap-3 px-4 py-3 text-sm font-medium" id="nav-order">
-        <i class="fas fa-shopping-cart w-5 text-center"></i> Order Food
+    <nav class="flex-1 space-y-1" aria-label="Main Navigation">
+      <a href="#" onclick="showSection('order')" class="nav-link active flex items-center gap-3 px-4 py-3 text-sm font-medium" id="nav-order" aria-current="page">
+        <i class="fas fa-shopping-cart w-5 text-center" aria-hidden="true"></i> Order Food
       </a>
       <a href="#" onclick="showSection('queue')" class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-medium" id="nav-queue">
-        <i class="fas fa-clock w-5 text-center"></i> Queue Status
+        <i class="fas fa-clock w-5 text-center" aria-hidden="true"></i> Queue Status
       </a>
       <a href="#" onclick="showSection('my-orders')" class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-medium" id="nav-my-orders">
-        <i class="fas fa-receipt w-5 text-center"></i> My Orders
+        <i class="fas fa-receipt w-5 text-center" aria-hidden="true"></i> My Orders
       </a>
       <a href="#" onclick="showSection('notifications')" class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-medium relative" id="nav-notifications">
-        <i class="fas fa-bell w-5 text-center"></i> Notifications
+        <i class="fas fa-bell w-5 text-center" aria-hidden="true"></i> Notifications
         <span id="notif-badge" class="hidden ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">0</span>
       </a>
     </nav>
@@ -514,11 +514,19 @@ function toggleMobileSidebar() {
 function showSection(sec) {
   document.querySelector('.sidebar')?.classList.remove('open');
   ['order','queue','my-orders','notifications'].forEach(s => {
-    document.getElementById('section-' + s).classList.add('hidden');
-    document.getElementById('nav-' + s)?.classList.remove('active');
+    document.getElementById('section-' + s)?.classList.add('hidden');
+    const navEl = document.getElementById('nav-' + s);
+    if (navEl) {
+      navEl.classList.remove('active');
+      navEl.removeAttribute('aria-current');
+    }
   });
-  document.getElementById('section-' + sec).classList.remove('hidden');
-  document.getElementById('nav-' + sec)?.classList.add('active');
+  document.getElementById('section-' + sec)?.classList.remove('hidden');
+  const activeNav = document.getElementById('nav-' + sec);
+  if (activeNav) {
+    activeNav.classList.add('active');
+    activeNav.setAttribute('aria-current', 'page');
+  }
   const titles = { order: ['Order Food', "Browse today's menu"], queue: ['Queue Status','Live queue and pickup slots'], 'my-orders': ['My Orders','Your order history'], notifications: ['Notifications','Your alerts and updates'] };
   document.getElementById('page-title').textContent = titles[sec]?.[0] || '';
   document.getElementById('page-subtitle').textContent = titles[sec]?.[1] || '';
