@@ -991,16 +991,27 @@ async function loadOrders() {
 }
 
 async function updateStatus(orderId, newStatus, btn) {
+  const originalHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   try {
-    await authFetch('/api/orders/' + orderId + '/status', {
+    const res = await authFetch('/api/orders/' + orderId + '/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus })
     });
+    if (!res.ok) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+      console.error('Failed to update status:', res.statusText);
+      return;
+    }
     await loadOrders();
-  } catch(e) {}
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    console.error('Error updating order status:', e);
+  }
 }
 
 async function loadForecasts() {
