@@ -42,9 +42,17 @@ export function assignPickupSlot(queuePos: number, timeSlot: string, slotInterva
 // Place a new order
 orders.post('/', async (c) => {
   try {
-    const { userId, timeSlot, items, notes } = await c.req.json()
-    if (!userId || !timeSlot || !items?.length) {
-      return c.json({ error: 'userId, timeSlot and items are required' }, 400)
+    const body = await c.req.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return c.json({ error: 'Invalid request payload' }, 400)
+    }
+    const { userId, timeSlot, items, notes } = body
+    if (!userId || !timeSlot || !Array.isArray(items) || items.length === 0) {
+      return c.json({ error: 'userId, timeSlot and items array are required' }, 400)
+    }
+    const validSlots = ['breakfast', 'lunch', 'dinner']
+    if (!validSlots.includes(timeSlot)) {
+      return c.json({ error: 'Invalid timeSlot. Must be breakfast, lunch, or dinner' }, 400)
     }
 
     const today = new Date().toISOString().split('T')[0]
