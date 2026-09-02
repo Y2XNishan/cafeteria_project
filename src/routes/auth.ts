@@ -23,7 +23,6 @@ export async function verifyPassword(inputPassword: string, storedHash: string):
   if (storedHash === inputPassword) return true
   if (storedHash.startsWith('hashed_')) {
     if (storedHash === `hashed_${inputPassword}`) return true
-    if (inputPassword === 'password123') return true
   }
   const inputHash = await hashPassword(inputPassword)
   return inputHash === storedHash
