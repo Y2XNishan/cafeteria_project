@@ -1241,9 +1241,16 @@ function adminDashboardHTML(): string {
         <div class="card p-5">
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-bold text-gray-800">Menu Management</h3>
-            <button onclick="document.getElementById('add-item-modal').classList.remove('hidden')" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700">
-              <i class="fas fa-plus mr-1"></i> Add Item
-            </button>
+            <div class="flex gap-2">
+              <select id="menu-slot-filter" onchange="loadMenuAdmin()" class="text-sm border rounded-lg px-2 py-1">
+                <option value="lunch" selected>Lunch</option>
+                <option value="breakfast">Breakfast</option>
+                <option value="dinner">Dinner</option>
+              </select>
+              <button onclick="document.getElementById('add-item-modal').classList.remove('hidden')" class="bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700">
+                <i class="fas fa-plus mr-1"></i> Add Item
+              </button>
+            </div>
           </div>
           <div id="menu-admin-list" class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -1479,8 +1486,9 @@ async function loadOrdersAdmin() {
 }
 
 async function loadMenuAdmin() {
+  const slot = document.getElementById('menu-slot-filter')?.value || 'lunch';
   try {
-    const res = await authFetch('/api/menu?slot=lunch');
+    const res = await authFetch('/api/menu?slot=' + slot);
     const data = await res.json();
     let html = '';
     for (const cat of (data.categories||[])) {
