@@ -1451,12 +1451,12 @@ async function loadForecastSummary() {
       const trendBadge = { rising: 'bg-green-100 text-green-700', stable: 'bg-gray-100 text-gray-600', falling: 'bg-red-100 text-red-700' }[f.trend] || 'bg-gray-100 text-gray-600';
       const trendIcon = { rising: 'fa-arrow-up', stable: 'fa-minus', falling: 'fa-arrow-down' }[f.trend] || 'fa-minus';
       html += '<tr class="table-row border-b text-sm">';
-      html += '<td class="py-2 font-medium text-gray-800">' + f.menuItemName + '</td>';
-      html += '<td class="py-2 text-blue-600 font-bold">' + f.predictedQuantity + '</td>';
-      html += '<td class="py-2 text-gray-600">' + (f.actualSold ?? '–') + '</td>';
-      html += '<td class="py-2">' + (f.accuracy !== null ? '<span class="' + (f.accuracy >= 80 ? 'text-green-600' : 'text-orange-500') + ' font-medium">' + f.accuracy + '%</span>' : '–') + '</td>';
-      html += '<td class="py-2"><span class="badge ' + trendBadge + '"><i class="fas ' + trendIcon + ' mr-1"></i>' + f.trend + '</span></td>';
-      html += '<td class="py-2"><span class="text-xs text-gray-500">' + f.confidencePct + '%</span></td>';
+      html += '<td class="py-2 font-medium text-gray-800">' + escapeHtml(f.menuItemName) + '</td>';
+      html += '<td class="py-2 text-blue-600 font-bold">' + escapeHtml(String(f.predictedQuantity)) + '</td>';
+      html += '<td class="py-2 text-gray-600">' + (f.actualSold != null ? escapeHtml(String(f.actualSold)) : '–') + '</td>';
+      html += '<td class="py-2">' + (f.accuracy !== null ? '<span class="' + (f.accuracy >= 80 ? 'text-green-600' : 'text-orange-500') + ' font-medium">' + escapeHtml(String(f.accuracy)) + '%</span>' : '–') + '</td>';
+      html += '<td class="py-2"><span class="badge ' + trendBadge + '"><i class="fas ' + trendIcon + ' mr-1"></i>' + escapeHtml(f.trend) + '</span></td>';
+      html += '<td class="py-2"><span class="text-xs text-gray-500">' + escapeHtml(String(f.confidencePct)) + '%</span></td>';
       html += '</tr>';
     }
     html += '</tbody></table>';
@@ -1563,7 +1563,7 @@ async function loadAnalytics() {
 
     let tableHtml = '<table class="w-full text-xs"><thead><tr class="text-left text-gray-500 border-b"><th class="pb-2">Item</th><th class="pb-2">Slot</th><th class="pb-2">Total Sold</th><th class="pb-2">Avg/Day</th></tr></thead><tbody>';
     for (const item of weeklyData.weekly || []) {
-      tableHtml += '<tr class="border-b py-1 hover:bg-gray-50"><td class="py-1.5 font-medium">' + item.item_name + '</td><td class="py-1.5 text-gray-500">' + item.time_slot + '</td><td class="py-1.5 font-bold text-blue-600">' + item.total_sold + '</td><td class="py-1.5 text-gray-500">' + item.avg_per_day + '</td></tr>';
+      tableHtml += '<tr class="border-b py-1 hover:bg-gray-50"><td class="py-1.5 font-medium">' + escapeHtml(item.item_name) + '</td><td class="py-1.5 text-gray-500">' + escapeHtml(item.time_slot) + '</td><td class="py-1.5 font-bold text-blue-600">' + escapeHtml(String(item.total_sold)) + '</td><td class="py-1.5 text-gray-500">' + escapeHtml(String(item.avg_per_day)) + '</td></tr>';
     }
     tableHtml += '</tbody></table>';
     document.getElementById('weekly-table').innerHTML = tableHtml;
@@ -1580,12 +1580,12 @@ async function loadFullForecast() {
     let html = '<table class="w-full text-sm"><thead><tr class="text-left text-xs text-gray-500 border-b">';
     html += '<th class="pb-2">Item</th><th class="pb-2">Predicted</th><th class="pb-2">Actual</th><th class="pb-2">Trend</th><th class="pb-2">Confidence</th><th class="pb-2 max-w-xs">Recommendation</th></tr></thead><tbody>';
     for (const f of data.forecasts||[]) {
-      const trendColor = { rising:'text-green-600', stable:'text-gray-500', falling:'text-red-500' }[f.trend];
-      html += '<tr class="table-row border-b"><td class="py-2 font-medium">' + f.menuItemName + '</td><td class="py-2 font-bold text-blue-600">' + f.predictedQuantity + '</td>';
-      html += '<td class="py-2">' + (f.actualSold ?? '–') + '</td>';
-      html += '<td class="py-2 ' + trendColor + ' font-medium">' + f.trend + '</td>';
-      html += '<td class="py-2"><div class="flex items-center gap-1"><div class="flex-1 h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-blue-400 rounded-full" style="width:' + f.confidencePct + '%"></div></div><span class="text-xs text-gray-500 ml-1">' + f.confidencePct + '%</span></div></td>';
-      html += '<td class="py-2 text-xs text-gray-500 max-w-xs">' + (f.recommendation||'–') + '</td></tr>';
+      const trendColor = { rising:'text-green-600', stable:'text-gray-500', falling:'text-red-500' }[f.trend] || 'text-gray-500';
+      html += '<tr class="table-row border-b"><td class="py-2 font-medium">' + escapeHtml(f.menuItemName) + '</td><td class="py-2 font-bold text-blue-600">' + escapeHtml(String(f.predictedQuantity)) + '</td>';
+      html += '<td class="py-2">' + (f.actualSold != null ? escapeHtml(String(f.actualSold)) : '–') + '</td>';
+      html += '<td class="py-2 ' + trendColor + ' font-medium">' + escapeHtml(f.trend) + '</td>';
+      html += '<td class="py-2"><div class="flex items-center gap-1"><div class="flex-1 h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-blue-400 rounded-full" style="width:' + escapeHtml(String(f.confidencePct)) + '%"></div></div><span class="text-xs text-gray-500 ml-1">' + escapeHtml(String(f.confidencePct)) + '%</span></div></td>';
+      html += '<td class="py-2 text-xs text-gray-500 max-w-xs">' + (f.recommendation ? escapeHtml(f.recommendation) : '–') + '</td></tr>';
     }
     html += '</tbody></table>';
     document.getElementById('full-forecast-table').innerHTML = html;
@@ -1599,10 +1599,10 @@ async function loadUsers() {
     const roleColors = { admin: 'bg-purple-100 text-purple-700', kitchen: 'bg-blue-100 text-blue-700', staff: 'bg-green-100 text-green-700', student: 'bg-gray-100 text-gray-600' };
     let html = '';
     for (const u of data.users||[]) {
-      html += '<tr class="table-row border-b text-sm"><td class="py-3 font-medium text-gray-800">' + u.name + '</td>';
-      html += '<td class="py-3 text-gray-500">' + u.email + '</td>';
-      html += '<td class="py-3"><span class="badge ' + (roleColors[u.role]||'bg-gray-100') + '">' + u.role + '</span></td>';
-      html += '<td class="py-3 text-gray-500 text-xs">' + (u.student_id||'–') + '</td>';
+      html += '<tr class="table-row border-b text-sm"><td class="py-3 font-medium text-gray-800">' + escapeHtml(u.name) + '</td>';
+      html += '<td class="py-3 text-gray-500">' + escapeHtml(u.email) + '</td>';
+      html += '<td class="py-3"><span class="badge ' + (roleColors[u.role]||'bg-gray-100') + '">' + escapeHtml(u.role) + '</span></td>';
+      html += '<td class="py-3 text-gray-500 text-xs">' + (u.student_id ? escapeHtml(u.student_id) : '–') + '</td>';
       html += '<td class="py-3 text-xs text-gray-400">' + (u.last_login ? new Date(u.last_login).toLocaleString() : 'Never') + '</td></tr>';
     }
     document.getElementById('users-tbody').innerHTML = html || '<tr><td colspan="5" class="text-center py-4 text-gray-400">No users</td></tr>';
