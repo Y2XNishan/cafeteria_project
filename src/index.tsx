@@ -149,7 +149,7 @@ function loginHTML(): string {
           <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
           <div class="relative">
             <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="password" id="password" placeholder="••••••••" value="password123"
+            <input type="password" id="password" placeholder="••••••••" required
               class="input-focus w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-xl outline-none transition-all text-gray-800">
             <button type="button" onclick="togglePass()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <i class="fas fa-eye" id="eye-icon"></i>
