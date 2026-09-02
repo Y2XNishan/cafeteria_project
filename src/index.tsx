@@ -749,13 +749,21 @@ async function loadNotifications() {
       '</div>'
     ).join('');
     document.getElementById('notif-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-bell text-4xl mb-3"></i><p>No notifications</p></div>';
-  } catch(e) {}
+  } catch(e) {
+    console.error('loadNotifications error:', e);
+    document.getElementById('notif-list').innerHTML = '<div class="card p-6 text-center text-gray-400"><i class="fas fa-exclamation-triangle text-2xl text-red-400 mb-2"></i><p class="text-sm">Unable to load notifications</p></div>';
+  }
 }
 
 async function markRead(id, el) {
-  await authFetch('/api/notifications/' + id + '/read', { method: 'PATCH' });
-  el.classList.add('opacity-60');
-  el.classList.remove('border-l-4', 'border-blue-500');
+  try {
+    await authFetch('/api/notifications/' + id + '/read', { method: 'PATCH' });
+    el.classList.add('opacity-60');
+    el.classList.remove('border-l-4', 'border-blue-500');
+    loadNotifications();
+  } catch(e) {
+    console.error('markRead error:', e);
+  }
 }
 async function markAllRead() {
   if (!currentUser) return;
