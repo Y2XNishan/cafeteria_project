@@ -1190,6 +1190,7 @@ function adminDashboardHTML(): string {
           <div class="card stat-card p-5">
             <div class="flex items-center justify-between mb-3">
               <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center"><i class="fas fa-clock text-orange-600"></i></div>
+              <span class="text-xs text-orange-500">Wait Time</span>
             </div>
             <div class="text-3xl font-bold text-gray-800" id="d-avg-wait">--</div>
             <div class="text-sm text-gray-500 mt-1">Avg Wait (min)</div>
@@ -1197,6 +1198,7 @@ function adminDashboardHTML(): string {
           <div class="card stat-card p-5">
             <div class="flex items-center justify-between mb-3">
               <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center"><i class="fas fa-fire text-purple-600"></i></div>
+              <span class="text-xs text-purple-500">Active</span>
             </div>
             <div class="text-3xl font-bold text-gray-800" id="d-active">--</div>
             <div class="text-sm text-gray-500 mt-1">Active Orders</div>
