@@ -1360,7 +1360,9 @@ function adminDashboardHTML(): string {
   <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-lg font-bold text-gray-800">Add Menu Item</h3>
-      <button onclick="document.getElementById('add-item-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    <div id="add-item-error" class="hidden bg-red-50 text-red-600 rounded-lg p-2.5 text-xs flex items-center gap-2 mb-2">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="add-item-error-msg"></span>
     </div>
     <form id="add-item-form" class="space-y-3" onsubmit="addMenuItem(event)">
       <div>
@@ -1556,6 +1558,9 @@ async function toggleItem(id, btn) {
 
 async function addMenuItem(e) {
   e.preventDefault();
+  const errBox = document.getElementById('add-item-error');
+  const errText = document.getElementById('add-item-error-msg');
+  if (errBox) errBox.classList.add('hidden');
   try {
     const res = await authFetch('/api/menu', {
       method: 'POST',
@@ -1575,9 +1580,17 @@ async function addMenuItem(e) {
       document.getElementById('add-item-form').reset();
       loadMenuAdmin();
     } else {
-      alert('Failed to add item: ' + (data.error || 'Unknown error'));
+      if (errBox && errText) {
+        errText.textContent = data.error || 'Failed to add menu item';
+        errBox.classList.remove('hidden');
+      }
     }
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    if (errBox && errText) {
+      errText.textContent = 'Connection error. Please try again.';
+      errBox.classList.remove('hidden');
+    }
+  }
 }
 
 async function loadAnalytics() {
