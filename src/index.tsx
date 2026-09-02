@@ -319,7 +319,7 @@ function studentDashboardHTML(): string {
           <p class="text-xs text-blue-300" id="sidebar-id">--</p>
         </div>
       </div>
-      <a href="/login" class="nav-link flex items-center gap-3 px-4 py-2 text-sm text-blue-200 hover:text-white">
+      <a href="#" onclick="logout(); return false;" class="nav-link flex items-center gap-3 px-4 py-2 text-sm text-blue-200 hover:text-white">
         <i class="fas fa-sign-out-alt w-5 text-center"></i> Logout
       </a>
     </div>
@@ -823,7 +823,7 @@ function kitchenDashboardHTML(): string {
       <span class="text-slate-300">Live</span>
     </div>
     <span id="k-time" class="text-slate-400 text-sm font-mono"></span>
-    <a href="/login" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-sign-out-alt"></i></a>
+    <a href="#" onclick="logout(); return false;" class="text-slate-400 hover:text-white text-sm" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
   </div>
 </div>
 
@@ -894,6 +894,7 @@ function escapeHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+function logout() { sessionStorage.clear(); window.location.href = '/login'; }
 
 // ────────────────────────────────────────────────────────────────────────────
 let currentSlot = 'lunch';
@@ -1120,7 +1121,7 @@ function adminDashboardHTML(): string {
     </nav>
     <div class="mt-auto border-t border-slate-700 pt-4 space-y-1">
       <a href="/kitchen" class="nav-link flex items-center gap-3 px-3 py-2 text-xs text-slate-400 hover:text-white"><i class="fas fa-hat-chef w-4"></i> Kitchen View</a>
-      <a href="/login" class="nav-link flex items-center gap-3 px-3 py-2 text-xs text-slate-400 hover:text-white"><i class="fas fa-sign-out-alt w-4"></i> Logout</a>
+      <a href="#" onclick="logout(); return false;" class="nav-link flex items-center gap-3 px-3 py-2 text-xs text-slate-400 hover:text-white"><i class="fas fa-sign-out-alt w-4"></i> Logout</a>
     </div>
   </aside>
 
@@ -1363,6 +1364,7 @@ function escapeHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+function logout() { sessionStorage.clear(); window.location.href = '/login'; }
 
 // ────────────────────────────────────────────────────────────────────────────
 let slotChart, weeklyChart;
