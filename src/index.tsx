@@ -901,7 +901,7 @@ function kitchenDashboardHTML(): string {
       <div class="card p-4">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-bold text-white"><i class="fas fa-fire-alt text-orange-400 mr-2"></i>Active Orders</h2>
-          <button onclick="loadOrders()" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+          <button onclick="loadOrders()" aria-label="Refresh active kitchen orders" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
         </div>
         <div id="orders-list" class="space-y-3 max-h-96 overflow-y-auto scrollbar-dark pr-1"></div>
       </div>
