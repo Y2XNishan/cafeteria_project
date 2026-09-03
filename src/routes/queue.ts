@@ -84,17 +84,19 @@ queue.get('/position/:orderId', async (c) => {
   }
 })
 
+const SQL_SELECT_ACTIVE_SURGE_ALERTS = `
+  SELECT sa.id, sa.time_slot, sa.date, sa.alert_type, sa.message, sa.created_at, mi.name as item_name
+  FROM surge_alerts sa
+  LEFT JOIN menu_items mi ON mi.id = sa.menu_item_id
+  WHERE sa.date = ? AND sa.is_resolved = 0
+  ORDER BY sa.created_at DESC
+`
+
 // Get surge alerts
 queue.get('/alerts', async (c) => {
   try {
     const today = new Date().toISOString().split('T')[0]
-    const { results } = await c.env.DB.prepare(`
-      SELECT sa.*, mi.name as item_name
-      FROM surge_alerts sa
-      LEFT JOIN menu_items mi ON mi.id = sa.menu_item_id
-      WHERE sa.date = ? AND sa.is_resolved = 0
-      ORDER BY sa.created_at DESC
-    `).bind(today).all()
+    const { results } = await c.env.DB.prepare(SQL_SELECT_ACTIVE_SURGE_ALERTS).bind(today).all()
     return c.json({ alerts: results })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
