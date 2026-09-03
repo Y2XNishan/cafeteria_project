@@ -242,7 +242,8 @@ function studentDashboardHTML(): string {
   .sidebar { background: linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 100%); }
   .nav-link { transition: all 0.2s; border-radius: 12px; }
   .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.15); }
-  .card { background: white; border-radius: 16px; box-shadow: 0 2px 15px rgba(0,0,0,0.06); }
+  .card { background: white; border-radius: 16px; box-shadow: 0 2px 15px rgba(0,0,0,0.06); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
   .badge-available { background: #dcfce7; color: #166534; }
   .badge-running_low { background: #fef9c3; color: #854d0e; }
   .badge-sold_out { background: #fee2e2; color: #991b1b; }
