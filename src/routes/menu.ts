@@ -17,15 +17,17 @@ export interface MenuItemCreatePayload {
 
 const menu = new Hono<{ Bindings: Bindings }>()
 
+const SQL_INSERT_MENU_AVAILABILITY = `
+  INSERT OR IGNORE INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
+  SELECT id, ?, ?, daily_capacity, 0, daily_capacity, 'available'
+  FROM menu_items
+  WHERE is_active = 1
+`
+
 // Helper to ensure daily availability rows exist for active menu items
 export async function ensureDailyAvailability(db: D1Database, date: string, timeSlot: string) {
   try {
-    await db.prepare(`
-      INSERT OR IGNORE INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
-      SELECT id, ?, ?, daily_capacity, 0, daily_capacity, 'available'
-      FROM menu_items
-      WHERE is_active = 1
-    `).bind(date, timeSlot).run()
+    await db.prepare(SQL_INSERT_MENU_AVAILABILITY).bind(date, timeSlot).run()
   } catch (e) {
     console.error('Error auto-initializing menu availability:', e)
   }
