@@ -344,10 +344,10 @@ function studentDashboardHTML(): string {
       </div>
       <div class="flex items-center gap-4">
         <!-- Time Slot Selector -->
-        <div class="flex bg-gray-100 rounded-xl p-1 gap-1">
-          <button onclick="setSlot('breakfast')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600" id="tab-breakfast">🌅 Breakfast</button>
-          <button onclick="setSlot('lunch')" class="tab-btn active px-3 py-1.5 rounded-lg text-xs font-medium" id="tab-lunch">☀️ Lunch</button>
-          <button onclick="setSlot('dinner')" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600" id="tab-dinner">🌙 Dinner</button>
+        <div class="flex bg-gray-100 rounded-xl p-1 gap-1" role="tablist" aria-label="Select meal time slot">
+          <button onclick="setSlot('breakfast')" role="tab" aria-selected="false" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400" id="tab-breakfast">🌅 Breakfast</button>
+          <button onclick="setSlot('lunch')" role="tab" aria-selected="true" class="tab-btn active px-3 py-1.5 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-400" id="tab-lunch">☀️ Lunch</button>
+          <button onclick="setSlot('dinner')" role="tab" aria-selected="false" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400" id="tab-dinner">🌙 Dinner</button>
         </div>
         <!-- Cart -->
         <button onclick="toggleCart()" class="relative bg-blue-600 text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-all">
@@ -538,11 +538,19 @@ function showSection(sec) {
 function setSlot(slot) {
   currentSlot = slot;
   ['breakfast','lunch','dinner'].forEach(s => {
-    document.getElementById('tab-' + s).classList.remove('active');
-    document.getElementById('tab-' + s).classList.add('text-gray-600');
+    const el = document.getElementById('tab-' + s);
+    if (el) {
+      el.classList.remove('active');
+      el.classList.add('text-gray-600');
+      el.setAttribute('aria-selected', 'false');
+    }
   });
-  document.getElementById('tab-' + slot).classList.add('active');
-  document.getElementById('tab-' + slot).classList.remove('text-gray-600');
+  const activeEl = document.getElementById('tab-' + slot);
+  if (activeEl) {
+    activeEl.classList.add('active');
+    activeEl.classList.remove('text-gray-600');
+    activeEl.setAttribute('aria-selected', 'true');
+  }
   loadMenu();
   loadQueueStatus();
 }
