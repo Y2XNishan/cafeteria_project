@@ -6,6 +6,15 @@ import { forecastDemand, generateRecommendation } from '../lib/forecast'
 
 type Bindings = { DB: D1Database }
 
+export interface ForecastPredictionResponse {
+  menuItemId: number
+  menuItemName: string
+  predictedQuantity: number
+  confidencePct: number
+  trend: string
+  recommendation: string
+}
+
 const forecast = new Hono<{ Bindings: Bindings }>()
 
 // Generate & return forecasts for a date + time slot
