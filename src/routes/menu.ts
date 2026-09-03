@@ -6,6 +6,15 @@ import { getAvailabilityStatus } from '../lib/forecast'
 
 type Bindings = { DB: D1Database }
 
+export interface MenuItemCreatePayload {
+  categoryId: number
+  name: string
+  description?: string
+  price: number
+  preparationTime?: number
+  dailyCapacity?: number
+}
+
 const menu = new Hono<{ Bindings: Bindings }>()
 
 // Helper to ensure daily availability rows exist for active menu items
