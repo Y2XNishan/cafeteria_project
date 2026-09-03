@@ -1361,11 +1361,11 @@ function adminDashboardHTML(): string {
           <div id="users-table-wrap" class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead><tr class="text-left text-xs text-gray-500 border-b">
-                <th class="pb-3 font-medium">Name</th>
-                <th class="pb-3 font-medium">Email</th>
-                <th class="pb-3 font-medium">Role</th>
-                <th class="pb-3 font-medium">Student ID</th>
-                <th class="pb-3 font-medium">Last Login</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-user text-blue-500 mr-1.5"></i>Name</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-envelope text-gray-400 mr-1.5"></i>Email</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-user-tag text-purple-500 mr-1.5"></i>Role</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-id-card text-green-500 mr-1.5"></i>Student ID</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-clock text-orange-500 mr-1.5"></i>Last Login</th>
               </tr></thead>
               <tbody id="users-tbody"></tbody>
             </table>
