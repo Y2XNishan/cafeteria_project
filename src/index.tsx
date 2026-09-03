@@ -1518,6 +1518,8 @@ async function loadForecastSummary() {
 
 async function loadOrdersAdmin() {
   const slot = document.getElementById('order-slot-filter')?.value || 'lunch';
+  const tbody = document.getElementById('orders-table-body');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Loading orders...</td></tr>';
   try {
     const res = await authFetch('/api/orders/active/all?slot=' + slot);
     const data = await res.json();
@@ -1656,6 +1658,8 @@ async function loadFullForecast() {
 }
 
 async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Loading users...</td></tr>';
   try {
     const res = await authFetch('/api/auth/users');
     const data = await res.json();
