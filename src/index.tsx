@@ -1270,7 +1270,7 @@ function adminDashboardHTML(): string {
           <div class="flex items-center justify-between mb-4">
             <h3 class="font-bold text-gray-800">All Orders Today</h3>
             <div class="flex gap-2">
-              <select id="order-slot-filter" onchange="loadOrdersAdmin()" class="text-sm border rounded-lg px-2 py-1">
+              <select id="order-slot-filter" onchange="loadOrdersAdmin()" aria-label="Filter orders by time slot" class="text-sm border rounded-lg px-2 py-1">
                 <option value="lunch">Lunch</option>
                 <option value="breakfast">Breakfast</option>
                 <option value="dinner">Dinner</option>
