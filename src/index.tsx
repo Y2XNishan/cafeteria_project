@@ -581,9 +581,9 @@ async function loadMenu() {
         html += '<span class="text-xs text-gray-400 ml-2"><i class="fas fa-clock mr-1"></i>' + escapeHtml(String(item.preparation_time_minutes)) + ' min</span></div>';
         if (!isSoldOut) {
           html += '<div class="flex items-center gap-2">';
-          html += '<button onclick="changeQty(' + item.id + ',-1)" class="btn-add w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 text-lg flex items-center justify-center">-</button>';
+          html += '<button onclick="changeQty(' + item.id + ',-1)" aria-label="Decrease quantity for ' + escapeHtml(item.name) + '" class="btn-add w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 font-bold text-gray-600 text-lg flex items-center justify-center">-</button>';
           html += '<span id="qty-' + item.id + '" class="w-6 text-center font-bold text-gray-800">0</span>';
-          html += '<button onclick="changeQty(' + item.id + ',1)" class="btn-add w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg flex items-center justify-center">+</button>';
+          html += '<button onclick="changeQty(' + item.id + ',1)" aria-label="Increase quantity for ' + escapeHtml(item.name) + '" class="btn-add w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg flex items-center justify-center">+</button>';
           html += '</div>';
         } else {
           html += '<span class="text-xs text-red-500 font-medium">Sold Out</span>';
