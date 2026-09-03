@@ -274,7 +274,7 @@ function studentDashboardHTML(): string {
 </head>
 <body class="bg-gray-50">
 <!-- Toast -->
-<div id="toast" class="fixed top-4 right-4 z-50 hidden">
+<div id="toast" class="fixed top-4 right-4 z-50 hidden" role="status" aria-live="polite">
   <div class="toast bg-white rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-sm border-l-4 border-green-500">
     <i class="fas fa-check-circle text-green-500 text-xl"></i>
     <div>
