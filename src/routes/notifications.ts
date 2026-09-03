@@ -5,6 +5,17 @@ import { Hono } from 'hono'
 
 type Bindings = { DB: D1Database }
 
+export interface NotificationItem {
+  id: number
+  userId: number
+  orderId?: number
+  type: string
+  title: string
+  message: string
+  isRead: boolean
+  createdAt: string
+}
+
 const notifications = new Hono<{ Bindings: Bindings }>()
 
 // Get notifications for a user
