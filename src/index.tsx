@@ -41,7 +41,7 @@ app.route('/api/notifications', notifications)
 app.get('/api/health', (c) => c.json({ 
   status: 'ok', 
   system: 'Smart Cafeteria System',
-  version: '1.0.0',
+  version: '1.1.0',
   timestamp: new Date().toISOString() 
 }))
 
