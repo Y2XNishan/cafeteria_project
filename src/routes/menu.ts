@@ -144,15 +144,15 @@ menu.post('/', async (c) => {
       return c.json({ error: 'Item name is required' }, 400)
     }
     const parsedPrice = parseFloat(price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      return c.json({ error: 'Price must be greater than 0' }, 400)
+    if (isNaN(parsedPrice) || parsedPrice <= 0 || parsedPrice > 10000) {
+      return c.json({ error: 'Price must be between ₹0.01 and ₹10,000' }, 400)
     }
     const parsedCatId = parseInt(categoryId)
     if (isNaN(parsedCatId) || parsedCatId <= 0) {
       return c.json({ error: 'Valid category is required' }, 400)
     }
-    const prepMins = Math.max(1, parseInt(preparationTime) || 5)
-    const cap = Math.max(1, parseInt(dailyCapacity) || 50)
+    const prepMins = Math.min(120, Math.max(1, parseInt(preparationTime) || 5))
+    const cap = Math.min(1000, Math.max(1, parseInt(dailyCapacity) || 50))
 
     const result = await c.env.DB.prepare(`
       INSERT INTO menu_items (category_id, name, description, price, preparation_time_minutes, daily_capacity)
