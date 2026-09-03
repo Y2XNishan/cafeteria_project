@@ -1544,7 +1544,10 @@ async function loadOrdersAdmin() {
       html += '<td class="py-3 text-xs text-gray-400">' + escapeHtml(new Date(o.created_at).toLocaleTimeString()) + '</td></tr>';
     }
     document.getElementById('orders-table-body').innerHTML = html || '<tr><td colspan="7" class="text-center py-8 text-gray-400">No orders found</td></tr>';
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error('loadOrdersAdmin error:', e);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>Failed to load orders. <button onclick="loadOrdersAdmin()" class="underline font-semibold ml-2">Retry</button></td></tr>';
+  }
 }
 
 async function loadMenuAdmin() {
