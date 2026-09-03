@@ -61,10 +61,10 @@ orders.post('/', async (c) => {
     let totalAmount = 0
     const resolvedItems: Array<{ id: number; qty: number; price: number; name: string; prepTime: number; remaining: number; prepared: number }> = []
     
+const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_minutes, daily_capacity FROM menu_items WHERE id = ? AND is_active = 1'
+
     for (const item of items) {
-      const mi = await c.env.DB.prepare(
-        'SELECT id, name, price, preparation_time_minutes, daily_capacity FROM menu_items WHERE id = ? AND is_active = 1'
-      ).bind(item.menuItemId).first<any>()
+      const mi = await c.env.DB.prepare(SQL_SELECT_ACTIVE_MENU_ITEM).bind(item.menuItemId).first<any>()
       if (!mi) return c.json({ error: `Menu item #${item.menuItemId} not found or inactive` }, 400)
 
       const qty = Math.max(1, parseInt(item.quantity) || 1)
