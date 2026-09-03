@@ -5,6 +5,11 @@ import { Hono } from 'hono'
 
 type Bindings = { DB: D1Database }
 
+export interface OrderItemRequest {
+  menuItemId: number
+  quantity: number
+}
+
 const orders = new Hono<{ Bindings: Bindings }>()
 
 // Generate order number
