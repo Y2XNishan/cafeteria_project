@@ -338,7 +338,9 @@ orders.patch('/:id/status', async (c) => {
 orders.get('/active/all', async (c) => {
   try {
     const today = c.req.query('date') || new Date().toISOString().split('T')[0]
-    const timeSlot = c.req.query('slot') || 'lunch'
+    const rawSlot = c.req.query('slot') || 'lunch'
+    const validSlots = ['breakfast', 'lunch', 'dinner']
+    const timeSlot = validSlots.includes(rawSlot) ? rawSlot : 'lunch'
     const { results } = await c.env.DB.prepare(`
       SELECT o.*, u.name as user_name, u.student_id,
              GROUP_CONCAT(mi.name || ' x' || oi.quantity, ', ') as items_summary,
