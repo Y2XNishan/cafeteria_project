@@ -12,5 +12,12 @@ export default defineConfig({
       adapter,
       entry: 'src/index.tsx'
     })
-  ]
+  ],
+  build: {
+    minify: true,
+    sourcemap: false,
+    rollupOptions: {
+      treeshake: true
+    }
+  }
 })
