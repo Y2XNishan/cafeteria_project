@@ -563,11 +563,17 @@ function setSlot(slot) {
   loadQueueStatus();
 }
 
-async function loadMenu() {
+let menuCache = {};
+
+async function loadMenu(forceRefresh = false) {
   try {
-    const res = await authFetch('/api/menu?slot=' + currentSlot);
-    const data = await res.json();
-    if (!data.categories) return;
+    let data = !forceRefresh ? menuCache[currentSlot] : null;
+    if (!data) {
+      const res = await authFetch('/api/menu?slot=' + currentSlot);
+      data = await res.json();
+      if (data.categories) menuCache[currentSlot] = data;
+    }
+    if (!data || !data.categories) return;
     menuData = {};
     let html = '';
     for (const cat of data.categories) {
@@ -671,10 +677,12 @@ async function placeOrder() {
     const data = await res.json();
     if (data.success) {
       cart = [];
+      menuCache = {};
       document.querySelectorAll('[id^="qty-"]').forEach(el => el.textContent = '0');
       toggleCart();
       showToast('Order Placed! 🎉', 'Order ' + escapeHtml(data.order.orderNumber) + ' confirmed. Pickup: ' + escapeHtml(data.order.pickupSlot) + '. Wait: ~' + escapeHtml(String(data.order.estimatedWaitMinutes)) + ' mins', 'green');
       loadQueueStatus();
+      loadMenu(true);
     } else {
       showToast('Order Failed', escapeHtml(data.error || 'Please try again'), 'red');
     }
