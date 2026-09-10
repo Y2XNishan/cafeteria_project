@@ -385,22 +385,30 @@ orders.get('/active/all', async (c) => {
 orders.get('/stats/today', async (c) => {
   try {
     const today = c.req.query('date') || new Date().toISOString().split('T')[0]
-    const stats = await c.env.DB.prepare(`
-      SELECT
-        COUNT(*) as total_orders,
-        COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed,
-        COALESCE(SUM(CASE WHEN status IN ('confirmed','preparing','pending') THEN 1 ELSE 0 END), 0) as active,
-        COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled,
-        COALESCE(SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END), 0) as ready,
-        COALESCE(ROUND(SUM(total_amount), 2), 0) as total_revenue,
-        COALESCE(ROUND(AVG(estimated_wait_minutes), 1), 0) as avg_wait_minutes
-      FROM orders WHERE DATE(created_at) = ?
-    `).bind(today).first()
+    const startOfDay = `${today} 00:00:00`
+    const endOfDay = `${today} 23:59:59`
 
-    const slotBreakdown = await c.env.DB.prepare(`
-      SELECT time_slot, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue
-      FROM orders WHERE DATE(created_at) = ? GROUP BY time_slot
-    `).bind(today).all()
+    const [stats, slotBreakdown] = await Promise.all([
+      c.env.DB.prepare(`
+        SELECT
+          COUNT(*) as total_orders,
+          COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed,
+          COALESCE(SUM(CASE WHEN status IN ('confirmed','preparing','pending') THEN 1 ELSE 0 END), 0) as active,
+          COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled,
+          COALESCE(SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END), 0) as ready,
+          COALESCE(ROUND(SUM(total_amount), 2), 0) as total_revenue,
+          COALESCE(ROUND(AVG(estimated_wait_minutes), 1), 0) as avg_wait_minutes
+        FROM orders 
+        WHERE (created_at >= ? AND created_at <= ?) OR DATE(created_at) = ?
+      `).bind(startOfDay, endOfDay, today).first(),
+
+      c.env.DB.prepare(`
+        SELECT time_slot, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue
+        FROM orders 
+        WHERE (created_at >= ? AND created_at <= ?) OR DATE(created_at) = ?
+        GROUP BY time_slot
+      `).bind(startOfDay, endOfDay, today).all()
+    ])
 
     return c.json({ stats, slotBreakdown: slotBreakdown.results, date: today })
   } catch (e: any) {
