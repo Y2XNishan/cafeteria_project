@@ -1562,13 +1562,16 @@ async function loadForecastSummary() {
   } catch(e) { console.error(e); }
 }
 
+let loadOrdersSeq = 0;
 async function loadOrdersAdmin() {
+  const currentSeq = ++loadOrdersSeq;
   const slot = document.getElementById('order-slot-filter')?.value || 'lunch';
   const tbody = document.getElementById('orders-table-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Loading orders...</td></tr>';
   try {
     const res = await authFetch('/api/orders/active/all?slot=' + slot);
     const data = await res.json();
+    if (currentSeq !== loadOrdersSeq) return;
     const statusColors = { completed: 'bg-green-100 text-green-700', ready: 'bg-emerald-100 text-emerald-700', preparing: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', pending: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-600' };
     let html = '';
     for (const o of (data.orders||[])) {
