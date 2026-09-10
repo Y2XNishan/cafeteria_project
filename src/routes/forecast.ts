@@ -29,24 +29,43 @@ forecast.get('/predict', async (c) => {
       'SELECT id, name, daily_capacity, preparation_time_minutes FROM menu_items WHERE is_active = 1'
     ).all<{ id: number; name: string; daily_capacity: number; preparation_time_minutes: number }>()
 
+    // Get all historical order counts (last 14 days) in a single query
+    const { results: allHistory } = await c.env.DB.prepare(`
+      SELECT oi.menu_item_id, DATE(o.created_at) as order_date, COALESCE(SUM(oi.quantity), 0) as qty
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.time_slot = ?
+        AND DATE(o.created_at) < ? AND DATE(o.created_at) >= DATE(?, '-14 days')
+      GROUP BY oi.menu_item_id, DATE(o.created_at)
+      ORDER BY order_date ASC
+    `).bind(timeSlot, dateStr, dateStr).all<{ menu_item_id: number; order_date: string; qty: number }>()
+
+    // Index history by menu_item_id -> date -> qty
+    const itemHistoryMap = new Map<number, Map<string, number>>()
+    for (const h of allHistory) {
+      if (!itemHistoryMap.has(h.menu_item_id)) {
+        itemHistoryMap.set(h.menu_item_id, new Map<string, number>())
+      }
+      itemHistoryMap.get(h.menu_item_id)!.set(h.order_date, h.qty)
+    }
+
+    // Get today's actual data for all items in a single query
+    const { results: allActual } = await c.env.DB.prepare(`
+      SELECT ma.menu_item_id, ma.quantity_sold, ma.quantity_prepared, ma.quantity_remaining, ma.status
+      FROM menu_availability ma
+      WHERE ma.date = ? AND ma.time_slot = ?
+    `).bind(dateStr, timeSlot).all<{ menu_item_id: number; quantity_sold: number; quantity_prepared: number; quantity_remaining: number; status: string }>()
+
+    const actualMap = new Map<number, typeof allActual[0]>()
+    for (const act of allActual) {
+      actualMap.set(act.menu_item_id, act)
+    }
+
     const forecasts = []
+    const upsertStatements = []
 
     for (const item of menuItems) {
-      // Get historical order counts (last 14 days) for this item + slot
-      const { results: history } = await c.env.DB.prepare(`
-        SELECT DATE(o.created_at) as order_date, COALESCE(SUM(oi.quantity), 0) as qty
-        FROM orders o
-        JOIN order_items oi ON oi.order_id = o.id
-        WHERE oi.menu_item_id = ? AND o.time_slot = ?
-          AND DATE(o.created_at) < ? AND DATE(o.created_at) >= DATE(?, '-14 days')
-        GROUP BY DATE(o.created_at)
-        ORDER BY order_date ASC
-      `).bind(item.id, timeSlot, dateStr, dateStr).all<{ order_date: string; qty: number }>()
-
-      const historyMap = new Map<string, number>()
-      for (const h of history) {
-        historyMap.set(h.order_date, h.qty)
-      }
+      const historyMap = itemHistoryMap.get(item.id) || new Map<string, number>()
 
       // Build continuous chronological data points
       const paddedCounts: number[] = []
@@ -60,18 +79,13 @@ forecast.get('/predict', async (c) => {
 
       const historicalCounts = paddedCounts.length > 0
         ? paddedCounts
-        : (history.length > 0 ? history.map(h => h.qty) : [Math.round(item.daily_capacity * 0.6)])
+        : (historyMap.size > 0 ? Array.from(historyMap.values()) : [Math.round(item.daily_capacity * 0.6)])
 
       const { predicted, confidence, trend } = forecastDemand(
         historicalCounts, targetDate, timeSlot, item.daily_capacity
       )
 
-      // Get today's actual data
-      const actual = await c.env.DB.prepare(`
-        SELECT ma.quantity_sold, ma.quantity_prepared, ma.quantity_remaining, ma.status
-        FROM menu_availability ma
-        WHERE ma.menu_item_id = ? AND ma.date = ? AND ma.time_slot = ?
-      `).bind(item.id, dateStr, timeSlot).first<any>()
+      const actual = actualMap.get(item.id)
 
       const recommendation = generateRecommendation(
         predicted,
@@ -81,14 +95,16 @@ forecast.get('/predict', async (c) => {
         confidence
       )
 
-      // Upsert forecast to DB
-      await c.env.DB.prepare(`
-        INSERT INTO demand_forecasts (menu_item_id, forecast_date, time_slot, predicted_quantity, confidence_score)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(menu_item_id, forecast_date, time_slot) DO UPDATE SET
-          predicted_quantity = excluded.predicted_quantity,
-          confidence_score = excluded.confidence_score
-      `).bind(item.id, dateStr, timeSlot, predicted, confidence).run()
+      // Queue upsert statement for batch execution
+      upsertStatements.push(
+        c.env.DB.prepare(`
+          INSERT INTO demand_forecasts (menu_item_id, forecast_date, time_slot, predicted_quantity, confidence_score)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(menu_item_id, forecast_date, time_slot) DO UPDATE SET
+            predicted_quantity = excluded.predicted_quantity,
+            confidence_score = excluded.confidence_score
+        `).bind(item.id, dateStr, timeSlot, predicted, confidence)
+      )
 
       forecasts.push({
         menuItemId: item.id,
@@ -105,6 +121,11 @@ forecast.get('/predict', async (c) => {
           ? Math.max(0, Math.min(100, Math.round((1 - Math.abs(actual.quantity_sold - predicted) / Math.max(predicted, actual.quantity_sold, 1)) * 100)))
           : null
       })
+    }
+
+    // Execute all upserts in a single batch call
+    if (upsertStatements.length > 0) {
+      await c.env.DB.batch(upsertStatements)
     }
 
     // Sort by predicted quantity desc
