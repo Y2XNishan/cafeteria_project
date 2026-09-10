@@ -14,30 +14,37 @@ queue.get('/status', async (c) => {
     const timeSlot = c.req.query('slot') || 'lunch'
     const today = new Date().toISOString().split('T')[0]
 
-    const { results: entries } = await c.env.DB.prepare(`
-      SELECT qe.*, o.order_number, o.status as order_status, o.pickup_slot,
-             u.name as user_name, u.student_id,
-             GROUP_CONCAT(mi.name || ' x' || oi.quantity, ', ') as items
-      FROM queue_entries qe
-      JOIN orders o ON o.id = qe.order_id
-      JOIN users u ON u.id = o.user_id
-      LEFT JOIN order_items oi ON oi.order_id = o.id
-      LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
-      WHERE qe.date = ? AND qe.time_slot = ? AND qe.status NOT IN ('collected')
-      GROUP BY qe.id
-      ORDER BY qe.queue_position ASC
-    `).bind(today, timeSlot).all()
+    const startOfDay = `${today} 00:00:00`
+    const endOfDay = `${today} 23:59:59`
 
-    // Get avg prep time
-    const avgPrepTime = await c.env.DB.prepare(`
-      SELECT AVG(mi.preparation_time_minutes) as avg_prep
-      FROM order_items oi
-      JOIN menu_items mi ON mi.id = oi.menu_item_id
-      JOIN orders o ON o.id = oi.order_id
-      WHERE o.time_slot = ? AND DATE(o.created_at) = ?
-        AND o.status NOT IN ('completed','cancelled')
-    `).bind(timeSlot, today).first<any>()
+    const [entriesRes, avgPrepTime] = await Promise.all([
+      c.env.DB.prepare(`
+        SELECT qe.id, qe.order_id, qe.queue_position, qe.time_slot, qe.date, qe.pickup_slot, qe.status,
+               o.order_number, o.status as order_status,
+               u.name as user_name, u.student_id,
+               GROUP_CONCAT(mi.name || ' x' || oi.quantity, ', ') as items
+        FROM queue_entries qe
+        JOIN orders o ON o.id = qe.order_id
+        JOIN users u ON u.id = o.user_id
+        LEFT JOIN order_items oi ON oi.order_id = o.id
+        LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+        WHERE qe.date = ? AND qe.time_slot = ? AND qe.status NOT IN ('collected')
+        GROUP BY qe.id
+        ORDER BY qe.queue_position ASC
+      `).bind(today, timeSlot).all(),
 
+      c.env.DB.prepare(`
+        SELECT AVG(mi.preparation_time_minutes) as avg_prep
+        FROM order_items oi
+        JOIN menu_items mi ON mi.id = oi.menu_item_id
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.time_slot = ? 
+          AND ((o.created_at >= ? AND o.created_at <= ?) OR DATE(o.created_at) = ?)
+          AND o.status NOT IN ('completed','cancelled')
+      `).bind(timeSlot, startOfDay, endOfDay, today).first<any>()
+    ])
+
+    const entries = entriesRes.results || []
     const queueLength = entries.length
     const avgPrep = avgPrepTime?.avg_prep ?? 6
     const optimization = optimizeQueue(queueLength, avgPrep, 15, 20, new Date())
