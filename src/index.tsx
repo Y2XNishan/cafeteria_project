@@ -504,8 +504,15 @@ window.addEventListener('load', () => {
   document.getElementById('sidebar-id').textContent = currentUser.studentId || currentUser.role;
   loadMenu();
   loadQueueStatus();
-  loadNotifications();
-  setInterval(loadQueueStatus, 30000); // Auto-refresh every 30s
+  setInterval(() => {
+    if (!document.hidden) loadQueueStatus();
+  }, 30000); // Auto-refresh every 30s only when visible
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      loadQueueStatus();
+      loadNotifications();
+    }
+  });
 });
 
 function toggleMobileSidebar() {
