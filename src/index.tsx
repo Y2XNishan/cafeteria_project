@@ -38,12 +38,15 @@ app.route('/api/forecast', forecast)
 app.route('/api/notifications', notifications)
 
 // Health check
-app.get('/api/health', (c) => c.json({ 
-  status: 'ok', 
-  system: 'Smart Cafeteria System',
-  version: '1.1.0',
-  timestamp: new Date().toISOString() 
-}))
+app.get('/api/health', (c) => {
+  c.header('Cache-Control', 'public, max-age=30')
+  return c.json({ 
+    status: 'ok', 
+    system: 'Smart Cafeteria System',
+    version: '1.1.0',
+    timestamp: new Date().toISOString() 
+  })
+})
 
 // ============================================================
 // STUDENT / STAFF DASHBOARD

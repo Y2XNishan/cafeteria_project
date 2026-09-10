@@ -84,6 +84,7 @@ menu.get('/', async (c) => {
       })
     }
 
+    c.header('Cache-Control', 'public, max-age=5, stale-while-revalidate=15')
     return c.json({ categories: Object.values(grouped), date: today, timeSlot })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
