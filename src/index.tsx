@@ -1482,6 +1482,7 @@ function showSection(sec) {
   const titles = { dashboard: ['Dashboard Overview', "Today's system summary"], orders: ['Orders', 'All orders today'], menu: ['Menu Management', 'Add/edit menu items'], analytics: ['Analytics', 'Demand and sales analytics'], users: ['Users', 'System user accounts'] };
   document.getElementById('a-page-title').textContent = titles[sec]?.[0] || '';
   document.getElementById('a-page-sub').textContent = titles[sec]?.[1] || '';
+  if (sec === 'dashboard') loadDashboard();
   if (sec === 'orders') loadOrdersAdmin();
   if (sec === 'menu') loadMenuAdmin();
   if (sec === 'analytics') loadAnalytics();
