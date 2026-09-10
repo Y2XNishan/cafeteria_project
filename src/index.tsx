@@ -683,9 +683,13 @@ async function placeOrder() {
     });
     const data = await res.json();
     if (data.success) {
+      const orderedItems = [...cart];
       cart = [];
       menuCache = {};
-      document.querySelectorAll('[id^="qty-"]').forEach(el => el.textContent = '0');
+      for (const item of orderedItems) {
+        const qtyEl = document.getElementById('qty-' + item.menuItemId);
+        if (qtyEl) qtyEl.textContent = '0';
+      }
       toggleCart();
       showToast('Order Placed! 🎉', 'Order ' + escapeHtml(data.order.orderNumber) + ' confirmed. Pickup: ' + escapeHtml(data.order.pickupSlot) + '. Wait: ~' + escapeHtml(String(data.order.estimatedWaitMinutes)) + ' mins', 'green');
       loadQueueStatus();
