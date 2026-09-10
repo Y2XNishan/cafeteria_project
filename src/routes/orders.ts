@@ -125,23 +125,29 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
     
     const orderId = orderResult.meta.last_row_id as number
 
-    // Insert order items & atomically update stock
+    // Batch statements for order items, stock updates, queue, and notification
+    const batchStatements = []
+
     for (const item of resolvedItems) {
-      await c.env.DB.prepare(`
-        INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, subtotal)
-        VALUES (?, ?, ?, ?, ?)
-      `).bind(orderId, item.id, item.qty, item.price, item.price * item.qty).run()
+      batchStatements.push(
+        c.env.DB.prepare(`
+          INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, subtotal)
+          VALUES (?, ?, ?, ?, ?)
+        `).bind(orderId, item.id, item.qty, item.price, item.price * item.qty)
+      )
 
       const newRemaining = Math.max(0, item.remaining - item.qty)
       const newStatus = newRemaining <= 0 ? 'sold_out' : (newRemaining * 100.0 / Math.max(1, item.prepared) <= 20 ? 'running_low' : 'available')
 
-      await c.env.DB.prepare(`
-        UPDATE menu_availability SET
-          quantity_sold = quantity_sold + ?,
-          quantity_remaining = MAX(0, quantity_remaining - ?),
-          status = ?
-        WHERE menu_item_id = ? AND date = ? AND time_slot = ?
-      `).bind(item.qty, item.qty, newStatus, item.id, today, timeSlot).run()
+      batchStatements.push(
+        c.env.DB.prepare(`
+          UPDATE menu_availability SET
+            quantity_sold = quantity_sold + ?,
+            quantity_remaining = MAX(0, quantity_remaining - ?),
+            status = ?
+          WHERE menu_item_id = ? AND date = ? AND time_slot = ?
+        `).bind(item.qty, item.qty, newStatus, item.id, today, timeSlot)
+      )
 
       // Trigger low stock surge alert if stock is critical
       if (newStatus === 'sold_out' || newStatus === 'running_low') {
@@ -152,25 +158,34 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
           const alertMsg = newStatus === 'sold_out'
             ? `${item.name} is SOLD OUT for ${timeSlot}. Prep replenishment recommended.`
             : `${item.name} is RUNNING LOW (${newRemaining} remaining) for ${timeSlot}.`
-          await c.env.DB.prepare(`
-            INSERT INTO surge_alerts (time_slot, date, menu_item_id, alert_type, message, is_resolved)
-            VALUES (?, ?, ?, 'low_stock', ?, 0)
-          `).bind(timeSlot, today, item.id, alertMsg).run()
+          batchStatements.push(
+            c.env.DB.prepare(`
+              INSERT INTO surge_alerts (time_slot, date, menu_item_id, alert_type, message, is_resolved)
+              VALUES (?, ?, ?, 'low_stock', ?, 0)
+            `).bind(timeSlot, today, item.id, alertMsg)
+          )
         }
       }
     }
 
-    // Add to queue
-    await c.env.DB.prepare(`
-      INSERT INTO queue_entries (order_id, queue_position, time_slot, date, pickup_slot, status, entered_at)
-      VALUES (?, ?, ?, ?, ?, 'waiting', CURRENT_TIMESTAMP)
-    `).bind(orderId, queuePos + 1, timeSlot, today, pickupSlot).run()
+    // Add queue entry statement
+    batchStatements.push(
+      c.env.DB.prepare(`
+        INSERT INTO queue_entries (order_id, queue_position, time_slot, date, pickup_slot, status, entered_at)
+        VALUES (?, ?, ?, ?, ?, 'waiting', CURRENT_TIMESTAMP)
+      `).bind(orderId, queuePos + 1, timeSlot, today, pickupSlot)
+    )
 
-    // Add notification
-    await c.env.DB.prepare(`
-      INSERT INTO notifications (user_id, order_id, type, title, message)
-      VALUES (?, ?, 'order_ready', 'Order Confirmed!', ?)
-    `).bind(userId, orderId, `Your order ${orderNumber} is confirmed. Pickup slot: ${pickupSlot}. Est. wait: ${estimatedWait} mins.`).run()
+    // Add notification statement
+    batchStatements.push(
+      c.env.DB.prepare(`
+        INSERT INTO notifications (user_id, order_id, type, title, message)
+        VALUES (?, ?, 'order_ready', 'Order Confirmed!', ?)
+      `).bind(userId, orderId, `Your order ${orderNumber} is confirmed. Pickup slot: ${pickupSlot}. Est. wait: ${estimatedWait} mins.`)
+    )
+
+    // Execute all order mutation statements in a single batch
+    await c.env.DB.batch(batchStatements)
 
     // Dynamic high queue surge alert trigger
     if (queuePos + 1 >= 8) {
