@@ -24,10 +24,21 @@ const SQL_INSERT_MENU_AVAILABILITY = `
   WHERE is_active = 1
 `
 
+// In-memory cache to avoid redundant D1 write transactions on read-heavy GET requests
+const initializedSlotsCache = new Set<string>()
+
+export function clearAvailabilityCache() {
+  initializedSlotsCache.clear()
+}
+
 // Helper to ensure daily availability rows exist for active menu items
 export async function ensureDailyAvailability(db: D1Database, date: string, timeSlot: string) {
+  const cacheKey = `${date}:${timeSlot}`
+  if (initializedSlotsCache.has(cacheKey)) return
+
   try {
     await db.prepare(SQL_INSERT_MENU_AVAILABILITY).bind(date, timeSlot).run()
+    initializedSlotsCache.add(cacheKey)
   } catch (e) {
     console.error('Error auto-initializing menu availability:', e)
   }
