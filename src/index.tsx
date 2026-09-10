@@ -1120,8 +1120,18 @@ window.addEventListener('load', () => {
   const user = JSON.parse(stored);
   if (user.role !== 'kitchen' && user.role !== 'admin') { window.location.href = '/login'; return; }
   refreshAll();
-  setInterval(refreshAll, 15000); // Auto-refresh every 15s
-  setInterval(updateClock, 1000);
+  setInterval(() => {
+    if (!document.hidden) refreshAll();
+  }, 15000); // Auto-refresh every 15s only when tab is visible
+  setInterval(() => {
+    if (!document.hidden) updateClock();
+  }, 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshAll();
+      updateClock();
+    }
+  });
   updateClock();
 });
 </script>
