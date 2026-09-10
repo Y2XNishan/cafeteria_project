@@ -1039,22 +1039,22 @@ async function loadOrders() {
       return;
     }
     const statusColors = { confirmed: 'text-blue-400', preparing: 'text-yellow-400', ready: 'text-green-400', pending: 'text-slate-400' };
-    let html = '';
-    for (const o of orders) {
-      html += '<div class="order-ticket ' + escapeHtml(o.status) + ' p-3">';
-      html += '<div class="flex items-center justify-between mb-2">';
-      html += '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + escapeHtml(String(o.queue_position||'?')) + '</span>';
-      html += '<div><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>';
-      html += '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + escapeHtml(o.status.toUpperCase()) + '</span></div>';
-      html += '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + escapeHtml(o.items_summary||'--') + '</p>';
-      html += '<div class="flex items-center justify-between">';
-      html += '<span class="text-xs text-slate-500"><i class="fas fa-calendar-check mr-1"></i>' + escapeHtml(o.pickup_slot||'--') + '</span>';
-      html += '<div class="flex gap-1">';
-      if (o.status === 'confirmed' || o.status === 'pending') html += '<button onclick="updateStatus(' + o.id + ',\'preparing\',this)" class="status-btn bg-yellow-900 text-yellow-300 hover:bg-yellow-800"><i class="fas fa-fire mr-1"></i>Start</button>';
-      if (o.status === 'preparing') html += '<button onclick="updateStatus(' + o.id + ',\'ready\',this)" class="status-btn bg-green-900 text-green-300 hover:bg-green-800"><i class="fas fa-bell mr-1"></i>Ready</button>';
-      if (o.status === 'ready') html += '<button onclick="updateStatus(' + o.id + ',\'completed\',this)" class="status-btn bg-slate-700 text-slate-300 hover:bg-slate-600"><i class="fas fa-check mr-1"></i>Done</button>';
-      html += '</div></div></div>';
-    }
+    const html = orders.map(o => {
+      let actions = '';
+      if (o.status === 'confirmed' || o.status === 'pending') actions = '<button onclick="updateStatus(' + o.id + ',\'preparing\',this)" class="status-btn bg-yellow-900 text-yellow-300 hover:bg-yellow-800"><i class="fas fa-fire mr-1"></i>Start</button>';
+      else if (o.status === 'preparing') actions = '<button onclick="updateStatus(' + o.id + ',\'ready\',this)" class="status-btn bg-green-900 text-green-300 hover:bg-green-800"><i class="fas fa-bell mr-1"></i>Ready</button>';
+      else if (o.status === 'ready') actions = '<button onclick="updateStatus(' + o.id + ',\'completed\',this)" class="status-btn bg-slate-700 text-slate-300 hover:bg-slate-600"><i class="fas fa-check mr-1"></i>Done</button>';
+
+      return '<div class="order-ticket ' + escapeHtml(o.status) + ' p-3">' +
+        '<div class="flex items-center justify-between mb-2">' +
+        '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + escapeHtml(String(o.queue_position||'?')) + '</span>' +
+        '<div><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>' +
+        '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + escapeHtml(o.status.toUpperCase()) + '</span></div>' +
+        '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + escapeHtml(o.items_summary||'--') + '</p>' +
+        '<div class="flex items-center justify-between">' +
+        '<span class="text-xs text-slate-500"><i class="fas fa-calendar-check mr-1"></i>' + escapeHtml(o.pickup_slot||'--') + '</span>' +
+        '<div class="flex gap-1">' + actions + '</div></div></div>';
+    }).join('');
     document.getElementById('orders-list').innerHTML = html;
   } catch(e) { console.error(e); }
 }
