@@ -115,8 +115,10 @@ queue.patch('/alerts/:id/resolve', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
     if (isNaN(id)) return c.json({ error: 'Invalid alert ID' }, 400)
+    const existing = await c.env.DB.prepare('SELECT id FROM surge_alerts WHERE id = ?').bind(id).first()
+    if (!existing) return c.json({ error: 'Surge alert not found' }, 404)
     await c.env.DB.prepare('UPDATE surge_alerts SET is_resolved = 1 WHERE id = ?').bind(id).run()
-    return c.json({ success: true })
+    return c.json({ success: true, message: 'Surge alert marked as resolved' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
