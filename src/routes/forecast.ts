@@ -15,6 +15,31 @@ export interface ForecastPredictionResponse {
   recommendation: string
 }
 
+export interface WeeklyAnalyticsItem {
+  item_name: string
+  time_slot: string
+  total_sold: number
+  days_active: number
+  avg_per_day: number
+}
+
+export interface WeeklyAnalyticsResponse {
+  weekly: WeeklyAnalyticsItem[]
+  summary: {
+    itemCount: number
+    totalSold: number
+    periodDays: number
+  }
+}
+
+export interface TopItem {
+  name: string
+  price: number
+  total_sold: number
+  total_revenue: number
+  times_ordered: number
+}
+
 const forecast = new Hono<{ Bindings: Bindings }>()
 
 // Generate & return forecasts for a date + time slot
