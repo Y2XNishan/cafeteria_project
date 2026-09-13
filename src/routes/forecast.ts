@@ -103,7 +103,7 @@ forecast.get('/predict', async (c) => {
           ON CONFLICT(menu_item_id, forecast_date, time_slot) DO UPDATE SET
             predicted_quantity = excluded.predicted_quantity,
             confidence_score = excluded.confidence_score
-        `).bind(item.id, dateStr, timeSlot, predicted, confidence)
+        `).bind(item.id, dateStr, timeSlot, predicted, Math.round(confidence * 100) / 100)
       )
 
       forecasts.push({
@@ -111,7 +111,7 @@ forecast.get('/predict', async (c) => {
         menuItemName: item.name,
         timeSlot,
         predictedQuantity: predicted,
-        confidenceScore: confidence,
+        confidenceScore: Math.round(confidence * 100) / 100,
         confidencePct: Math.round(confidence * 100),
         trend,
         recommendation,
