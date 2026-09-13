@@ -696,7 +696,7 @@ function renderCart() {
   for (const item of cart) {
     html += '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">';
     html += '<div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-utensils text-blue-500"></i></div>';
-    html += '<div class="flex-1"><p class="font-semibold text-gray-800">' + item.name + '</p><p class="text-sm text-gray-500">₹ ' + item.price.toFixed(2) + ' each</p></div>';
+    html += '<div class="flex-1"><p class="font-semibold text-gray-800">' + escapeHtml(item.name) + '</p><p class="text-sm text-gray-500">&#x20B9; ' + item.price.toFixed(2) + ' each</p></div>';
     html += '<div class="flex items-center gap-2">';
     html += '<button onclick="changeQty(' + item.menuItemId + ',-1)" class="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 text-sm font-bold flex items-center justify-center">-</button>';
     html += '<span class="w-5 text-center font-bold">' + item.quantity + '</span>';
