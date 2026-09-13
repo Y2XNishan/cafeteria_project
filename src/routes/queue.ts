@@ -6,6 +6,19 @@ import { optimizeQueue } from '../lib/forecast'
 
 type Bindings = { DB: D1Database }
 
+export type SurgeAlertFilter = 'active' | 'resolved' | 'all'
+
+export interface QueueStatusResponse {
+  timeSlot: string
+  date: string
+  queueLength: number
+  estimatedWaitMinutes: number
+  isSurge: boolean
+  optimization: any
+  entries: any[]
+  slotGroups: Record<string, any[]>
+}
+
 const queue = new Hono<{ Bindings: Bindings }>()
 
 // Get current queue status for a time slot
