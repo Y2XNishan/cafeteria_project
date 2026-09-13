@@ -48,7 +48,12 @@ export async function ensureDailyAvailability(db: D1Database, date: string, time
 menu.get('/', async (c) => {
   try {
     const today = new Date().toISOString().split('T')[0]
-    const timeSlot = c.req.query('slot') || 'lunch'
+    const rawSlot = c.req.query('slot') || 'lunch'
+    const validSlots = ['breakfast', 'lunch', 'dinner']
+    if (!validSlots.includes(rawSlot)) {
+      return c.json({ error: 'Invalid slot parameter. Must be breakfast, lunch, or dinner' }, 400)
+    }
+    const timeSlot = rawSlot
 
     // Auto-initialize today's stock if missing
     await ensureDailyAvailability(c.env.DB, today, timeSlot)
