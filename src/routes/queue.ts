@@ -102,9 +102,27 @@ const SQL_SELECT_ACTIVE_SURGE_ALERTS = `
 // Get surge alerts
 queue.get('/alerts', async (c) => {
   try {
-    const today = new Date().toISOString().split('T')[0]
-    const { results } = await c.env.DB.prepare(SQL_SELECT_ACTIVE_SURGE_ALERTS).bind(today).all()
-    return c.json({ alerts: results })
+    const queryDate = c.req.query('date')
+    const today = (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate))
+      ? queryDate
+      : new Date().toISOString().split('T')[0]
+    const status = c.req.query('status') || 'active'
+
+    let query = `
+      SELECT sa.id, sa.time_slot, sa.date, sa.alert_type, sa.message, sa.is_resolved, sa.created_at, mi.name as item_name
+      FROM surge_alerts sa
+      LEFT JOIN menu_items mi ON mi.id = sa.menu_item_id
+      WHERE sa.date = ?
+    `
+    if (status === 'resolved') {
+      query += ' AND sa.is_resolved = 1'
+    } else if (status !== 'all') {
+      query += ' AND sa.is_resolved = 0'
+    }
+    query += ' ORDER BY sa.created_at DESC'
+
+    const { results } = await c.env.DB.prepare(query).bind(today).all()
+    return c.json({ alerts: results, date: today, filter: status })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
