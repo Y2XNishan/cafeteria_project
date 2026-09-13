@@ -927,6 +927,17 @@ function kitchenDashboardHTML(): string {
 </style>
 </head>
 <body>
+<!-- Kitchen Alert Toast -->
+<div id="k-toast" class="fixed top-4 right-4 z-50 hidden">
+  <div class="bg-red-900/95 border border-red-500 text-white rounded-xl shadow-2xl p-4 flex items-center gap-3 max-w-md">
+    <i class="fas fa-exclamation-circle text-red-400 text-xl flex-shrink-0"></i>
+    <div>
+      <p class="font-bold text-sm" id="k-toast-title">Transition Error</p>
+      <p class="text-xs text-red-200" id="k-toast-msg">Invalid order transition</p>
+    </div>
+    <button onclick="document.getElementById('k-toast').classList.add('hidden')" class="ml-auto text-red-300 hover:text-white"><i class="fas fa-times"></i></button>
+  </div>
+</div>
 <!-- Header -->
 <div class="bg-gradient-to-r from-slate-900 to-blue-950 border-b border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
   <div class="flex items-center gap-4">
@@ -1130,6 +1141,15 @@ async function loadOrders() {
   } catch(e) { console.error(e); }
 }
 
+function showKitchenToast(title, msg, isError = true) {
+  const t = document.getElementById('k-toast');
+  if (!t) return;
+  document.getElementById('k-toast-title').textContent = title;
+  document.getElementById('k-toast-msg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 4000);
+}
+
 async function updateStatus(orderId, newStatus, btn) {
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -1143,13 +1163,15 @@ async function updateStatus(orderId, newStatus, btn) {
     if (!res.ok) {
       btn.disabled = false;
       btn.innerHTML = originalHtml;
-      console.error('Failed to update status:', res.statusText);
+      const errData = await res.json().catch(() => ({}));
+      showKitchenToast('Transition Rejected', errData.error || 'Invalid status transition', true);
       return;
     }
     await loadOrders();
   } catch(e) {
     btn.disabled = false;
     btn.innerHTML = originalHtml;
+    showKitchenToast('Network Error', 'Could not reach server to update order', true);
     console.error('Error updating order status:', e);
   }
 }
