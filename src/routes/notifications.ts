@@ -42,7 +42,9 @@ notifications.get('/user/:userId', async (c) => {
 notifications.patch('/:id/read', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
-    if (isNaN(id)) return c.json({ error: 'Invalid notification ID' }, 400)
+    if (isNaN(id) || id <= 0) return c.json({ error: 'Invalid notification ID' }, 400)
+    const existing = await c.env.DB.prepare('SELECT id FROM notifications WHERE id = ?').bind(id).first()
+    if (!existing) return c.json({ error: 'Notification not found' }, 404)
     await c.env.DB.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Marked as read' })
   } catch (e: any) {
