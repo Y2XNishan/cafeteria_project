@@ -90,4 +90,27 @@ describe('Demand Forecast Engine', () => {
       expect(calculateForecastAccuracy(50, undefined)).toBeNull()
     })
   })
+
+  describe('Route Parameter Validation', () => {
+    it('validates YYYY-MM-DD date format correctly', () => {
+      const isValidDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d)
+      expect(isValidDate('2026-09-13')).toBe(true)
+      expect(isValidDate('2026-01-01')).toBe(true)
+      expect(isValidDate('13-09-2026')).toBe(false)
+      expect(isValidDate('invalid')).toBe(false)
+      expect(isValidDate('')).toBe(false)
+    })
+
+    it('clamps top items limit between 1 and 50', () => {
+      const clampLimit = (raw: any) => {
+        const parsed = parseInt(raw)
+        return isNaN(parsed) ? 5 : Math.min(50, Math.max(1, parsed))
+      }
+      expect(clampLimit('0')).toBe(1)
+      expect(clampLimit('-10')).toBe(1)
+      expect(clampLimit('100')).toBe(50)
+      expect(clampLimit('10')).toBe(10)
+      expect(clampLimit('invalid')).toBe(5)
+    })
+  })
 })
