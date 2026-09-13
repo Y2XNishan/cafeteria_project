@@ -476,9 +476,13 @@ function studentDashboardHTML(): string {
     </div>
   </div>
   <div class="p-5 border-t bg-gray-50">
+    <div class="mb-3">
+      <label for="order-notes" class="block text-xs font-semibold text-gray-600 mb-1"><i class="fas fa-comment-dots text-gray-400 mr-1"></i>Special Instructions (optional)</label>
+      <textarea id="order-notes" rows="2" maxlength="200" placeholder="e.g., Less spicy, extra sauce, pack separately..." class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+    </div>
     <div class="flex justify-between text-lg font-bold mb-4">
       <span>Total</span>
-      <span class="text-blue-600">₹ <span id="cart-total">0.00</span></span>
+      <span class="text-blue-600">&#x20B9; <span id="cart-total">0.00</span></span>
     </div>
     <button onclick="placeOrder()" id="checkout-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all disabled:opacity-40" disabled>
       <i class="fas fa-check mr-2"></i>Place Order
@@ -723,17 +727,20 @@ async function placeOrder() {
   const btn = document.getElementById('checkout-btn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Placing order...';
+  const notes = (document.getElementById('order-notes')?.value || '').trim();
   try {
     const res = await authFetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUser.id, timeSlot: currentSlot, items: cart })
+      body: JSON.stringify({ userId: currentUser.id, timeSlot: currentSlot, items: cart, notes })
     });
     const data = await res.json();
     if (data.success) {
       const orderedItems = [...cart];
       cart = [];
       menuCache = {};
+      const notesEl = document.getElementById('order-notes');
+      if (notesEl) notesEl.value = '';
       for (const item of orderedItems) {
         const qtyEl = document.getElementById('qty-' + item.menuItemId);
         if (qtyEl) qtyEl.textContent = '0';
