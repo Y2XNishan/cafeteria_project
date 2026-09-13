@@ -59,6 +59,16 @@ orders.post('/', async (c) => {
     if (!userId || !timeSlot || !Array.isArray(items) || items.length === 0) {
       return c.json({ error: 'userId, timeSlot and items array are required' }, 400)
     }
+    const parsedUserId = parseInt(userId)
+    if (isNaN(parsedUserId) || parsedUserId <= 0) {
+      return c.json({ error: 'Valid positive userId is required' }, 400)
+    }
+
+    const userRecord = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(parsedUserId).first()
+    if (!userRecord) {
+      return c.json({ error: 'User account not found' }, 404)
+    }
+
     const validSlots = ['breakfast', 'lunch', 'dinner']
     if (!validSlots.includes(timeSlot)) {
       return c.json({ error: 'Invalid timeSlot. Must be breakfast, lunch, or dinner' }, 400)
