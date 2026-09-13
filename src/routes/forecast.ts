@@ -2,7 +2,7 @@
 // Forecast Routes - Demand Prediction Engine
 // ================================================
 import { Hono } from 'hono'
-import { forecastDemand, generateRecommendation } from '../lib/forecast'
+import { forecastDemand, generateRecommendation, calculateForecastAccuracy } from '../lib/forecast'
 
 type Bindings = { DB: D1Database }
 
@@ -117,9 +117,7 @@ forecast.get('/predict', async (c) => {
         recommendation,
         actualSold: actual?.quantity_sold ?? null,
         actualStatus: actual?.status ?? 'not_tracked',
-        accuracy: (actual?.quantity_sold !== undefined && actual?.quantity_sold !== null)
-          ? Math.max(0, Math.min(100, Math.round((1 - Math.abs(actual.quantity_sold - predicted) / Math.max(predicted, actual.quantity_sold, 1)) * 100)))
-          : null
+        accuracy: calculateForecastAccuracy(predicted, actual?.quantity_sold)
       })
     }
 

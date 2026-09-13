@@ -268,3 +268,14 @@ export function getOperatingHoursInfo(date: Date = new Date()): OperatingHoursIn
     message: `Cafeteria is currently closed. Next service is ${nextOpenSlot}.`
   }
 }
+
+/**
+ * Calculate forecast accuracy percentage (0 - 100)
+ * Safely guards against division-by-zero or negative results
+ */
+export function calculateForecastAccuracy(predicted: number, actualSold: number | null | undefined): number | null {
+  if (actualSold === null || actualSold === undefined) return null
+  const denominator = Math.max(predicted, actualSold, 1)
+  const errorFraction = Math.abs(actualSold - predicted) / denominator
+  return Math.max(0, Math.min(100, Math.round((1 - errorFraction) * 100)))
+}
