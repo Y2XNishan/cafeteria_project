@@ -193,10 +193,11 @@ menu.post('/', async (c) => {
     const sanitizedDesc = typeof description === 'string'
       ? description.trim().slice(0, 500).replace(/<[^>]*>?/gm, '')
       : ''
-    const parsedPrice = parseFloat(price)
-    if (isNaN(parsedPrice) || parsedPrice <= 0 || parsedPrice > 10000) {
-      return c.json({ error: 'Price must be between ₹0.01 and ₹10,000' }, 400)
+    const rawPrice = parseFloat(price)
+    if (isNaN(rawPrice) || rawPrice < 1 || rawPrice > 5000) {
+      return c.json({ error: 'Price must be between ₹1.00 and ₹5,000.00' }, 400)
     }
+    const parsedPrice = Math.round(rawPrice * 100) / 100
     const parsedCatId = parseInt(categoryId)
     if (isNaN(parsedCatId) || parsedCatId <= 0) {
       return c.json({ error: 'Valid category is required' }, 400)
