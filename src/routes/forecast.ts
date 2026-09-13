@@ -195,7 +195,8 @@ forecast.get('/weekly', async (c) => {
 // Top items analytics
 forecast.get('/top-items', async (c) => {
   try {
-    const limit = parseInt(c.req.query('limit') || '5')
+    const rawLimit = parseInt(c.req.query('limit') || '5')
+    const limit = isNaN(rawLimit) ? 5 : Math.min(50, Math.max(1, rawLimit))
     const { results } = await c.env.DB.prepare(`
       SELECT mi.name, mi.price,
              COALESCE(SUM(oi.quantity), 0) as total_sold,
