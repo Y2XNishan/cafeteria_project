@@ -175,9 +175,9 @@ forecast.get('/weekly', async (c) => {
       SELECT 
         mi.name as item_name,
         o.time_slot,
-        SUM(oi.quantity) as total_sold,
+        COALESCE(SUM(oi.quantity), 0) as total_sold,
         COUNT(DISTINCT DATE(o.created_at)) as days_active,
-        ROUND(SUM(oi.quantity) * 1.0 / MAX(1, COUNT(DISTINCT DATE(o.created_at))), 1) as avg_per_day
+        ROUND(COALESCE(SUM(oi.quantity), 0) * 1.0 / MAX(1, COUNT(DISTINCT DATE(o.created_at))), 1) as avg_per_day
       FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
       JOIN menu_items mi ON mi.id = oi.menu_item_id
@@ -186,7 +186,17 @@ forecast.get('/weekly', async (c) => {
       ORDER BY total_sold DESC
     `).all()
 
-    return c.json({ weekly: results })
+    const list = results || []
+    const totalWeeklySold = list.reduce((sum: number, r: any) => sum + (r.total_sold || 0), 0)
+
+    return c.json({
+      weekly: list,
+      summary: {
+        itemCount: list.length,
+        totalSold: totalWeeklySold,
+        periodDays: 7
+      }
+    })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
