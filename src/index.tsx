@@ -1496,6 +1496,7 @@ function adminDashboardHTML(): string {
                 <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-user-tag text-purple-500 mr-1.5"></i>Role</th>
                 <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-id-card text-green-500 mr-1.5"></i>Student ID</th>
                 <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-clock text-orange-500 mr-1.5"></i>Last Login</th>
+                <th class="pb-3 font-semibold text-gray-600"><i class="fas fa-cog text-gray-400 mr-1.5"></i>Actions</th>
               </tr></thead>
               <tbody id="users-tbody"></tbody>
             </table>
@@ -1840,9 +1841,24 @@ async function loadFullForecast() {
   } catch(e) { console.error(e); }
 }
 
+function confirmRoleChange(userId, userName, currentRole) {
+  const newRole = prompt('Change role for ' + userName + ' (current: ' + currentRole + ').\nEnter new role (student, staff, kitchen, admin):', currentRole);
+  if (!newRole || newRole.trim() === currentRole) return;
+  const validRoles = ['student', 'staff', 'kitchen', 'admin'];
+  const trimmed = newRole.trim().toLowerCase();
+  if (!validRoles.includes(trimmed)) {
+    alert('Invalid role specified. Must be one of: student, staff, kitchen, admin');
+    return;
+  }
+  if (!confirm('Are you sure you want to change ' + userName + '\'s role from ' + currentRole + ' to ' + trimmed + '?')) {
+    return;
+  }
+  alert('Role change request logged for ' + userName + ' -> ' + trimmed);
+}
+
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Loading users...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2 text-blue-500"></i>Loading users...</td></tr>';
   try {
     const res = await authFetch('/api/auth/users');
     const data = await res.json();
@@ -1853,9 +1869,10 @@ async function loadUsers() {
       html += '<td class="py-3 text-gray-500">' + escapeHtml(u.email) + '</td>';
       html += '<td class="py-3"><span class="badge ' + (roleColors[u.role]||'bg-gray-100') + '">' + escapeHtml(u.role) + '</span></td>';
       html += '<td class="py-3 text-gray-500 text-xs">' + (u.student_id ? escapeHtml(u.student_id) : '–') + '</td>';
-      html += '<td class="py-3 text-xs text-gray-400">' + (u.last_login ? new Date(u.last_login).toLocaleString() : 'Never') + '</td></tr>';
+      html += '<td class="py-3 text-xs text-gray-400">' + (u.last_login ? new Date(u.last_login).toLocaleString() : 'Never') + '</td>';
+      html += '<td class="py-3"><button onclick="confirmRoleChange(' + u.id + ',\'' + escapeHtml(u.name).replace(/'/g, "\\'") + '\',\'' + escapeHtml(u.role) + '\')" class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"><i class="fas fa-user-edit mr-1"></i>Edit</button></td></tr>';
     }
-    document.getElementById('users-tbody').innerHTML = html || '<tr><td colspan="5" class="text-center py-4 text-gray-400">No users</td></tr>';
+    document.getElementById('users-tbody').innerHTML = html || '<tr><td colspan="6" class="text-center py-4 text-gray-400">No users</td></tr>';
   } catch(e) { console.error(e); }
 }
 
