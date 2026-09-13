@@ -493,6 +493,21 @@ function escapeHtml(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+function formatPickupSlot(slot) {
+  if (!slot || slot === '--' || slot === 'unassigned' || slot === 'No slots available') return slot || '--';
+  const parts = slot.split('-');
+  if (parts.length !== 2) return slot;
+  const to12h = (t) => {
+    const sub = t.trim().split(':');
+    if (sub.length !== 2) return t;
+    const h = parseInt(sub[0]);
+    if (isNaN(h)) return t;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return hour12 + ':' + sub[1] + ' ' + ampm;
+  };
+  return to12h(parts[0]) + ' - ' + to12h(parts[1]);
+}
 function authFetch(url, options) {
   const token = sessionStorage.getItem('token') || '';
   const opts = options || {};
@@ -731,7 +746,7 @@ async function loadQueueStatus() {
     const data = await res.json();
     document.getElementById('banner-queue-len').textContent = data.queueLength ?? '--';
     document.getElementById('banner-wait').textContent = data.estimatedWaitMinutes ?? '--';
-    document.getElementById('banner-next-slot').textContent = data.nextAvailableSlot || '--';
+    document.getElementById('banner-next-slot').textContent = formatPickupSlot(data.nextAvailableSlot);
     if (data.isSurge) document.getElementById('banner-surge').classList.remove('hidden');
     else document.getElementById('banner-surge').classList.add('hidden');
   } catch(e) { console.error('loadQueueStatus error:', e); }
@@ -743,12 +758,12 @@ async function loadQueueSection() {
     const data = await res.json();
     document.getElementById('q-length').textContent = data.queueLength ?? '--';
     document.getElementById('q-wait').textContent = data.estimatedWaitMinutes ?? '--';
-    document.getElementById('q-next-slot').textContent = data.nextAvailableSlot || '--';
+    document.getElementById('q-next-slot').textContent = formatPickupSlot(data.nextAvailableSlot);
 
     // Slots grid
     const slotsHtml = (data.availableSlots || []).map(s =>
       '<div class="slot-chip p-3 rounded-xl border-2 text-center ' + (s.available ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50') + '">' +
-      '<div class="font-bold text-sm ' + (s.available ? 'text-green-700' : 'text-red-600') + '">' + escapeHtml(s.slot) + '</div>' +
+      '<div class="font-bold text-sm ' + (s.available ? 'text-green-700' : 'text-red-600') + '">' + escapeHtml(formatPickupSlot(s.slot)) + '</div>' +
       '<div class="text-xs text-gray-500 mt-1">' + escapeHtml(String(s.orderCount)) + '/' + escapeHtml(String(s.maxCapacity)) + ' orders</div>' +
       '<div class="text-xs ' + (s.available ? 'text-green-600' : 'text-red-500') + ' font-medium">' + (s.available ? '&#10003; Available' : '&#10007; Full') + '</div>' +
       '</div>'
@@ -763,7 +778,7 @@ async function loadQueueSection() {
         '<div class="flex-1"><p class="font-medium text-gray-800 text-sm">' + escapeHtml(e.user_name) + ' <span class="text-gray-400 text-xs">(' + escapeHtml(e.student_id || '--') + ')</span></p>' +
         '<p class="text-xs text-gray-500">' + escapeHtml(e.items || '--') + '</p></div>' +
         '<span class="text-xs px-2 py-1 rounded-full font-medium ' + statusColor + '">' + escapeHtml(e.status) + '</span>' +
-        '<span class="text-xs text-gray-500">' + escapeHtml(e.pickup_slot || '--') + '</span></div>';
+        '<span class="text-xs text-gray-500">' + escapeHtml(formatPickupSlot(e.pickup_slot)) + '</span></div>';
     }).join('');
     document.getElementById('queue-list').innerHTML = qHtml || '<p class="text-gray-400 text-center py-4">Queue is empty</p>';
   } catch(e) { console.error(e); }
@@ -785,7 +800,7 @@ async function loadMyOrders() {
       '<i class="fas ' + (statusIcons[o.status] || 'fa-circle') + ' mr-1"></i>' + escapeHtml(o.status.toUpperCase()) + '</span></div>' +
       '<p class="text-sm text-gray-600 mb-3"><i class="fas fa-utensils text-gray-400 mr-1"></i>' + escapeHtml(o.items_summary || '--') + '</p>' +
       '<div class="flex items-center justify-between text-sm">' +
-      '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + escapeHtml(o.pickup_slot || '--') + '</b></span>' +
+      '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + escapeHtml(formatPickupSlot(o.pickup_slot)) + '</b></span>' +
       '<span class="font-bold text-blue-600">&#x20B9; ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
     ).join('');
     document.getElementById('my-orders-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-receipt text-4xl mb-3"></i><p>No orders yet</p></div>';
