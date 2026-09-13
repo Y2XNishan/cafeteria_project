@@ -391,6 +391,14 @@ function studentDashboardHTML(): string {
         </button>
       </div>
 
+      <!-- Search Bar -->
+      <div class="mb-6">
+        <div class="relative max-w-md">
+          <i class="fas fa-search absolute left-3.5 top-3 text-gray-400"></i>
+          <input type="text" id="menu-search-input" oninput="filterMenuItems()" placeholder="Search dishes, drinks..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+        </div>
+      </div>
+
       <!-- Menu -->
       <div id="menu-container">
         <div class="flex items-center justify-center py-16">
@@ -594,7 +602,7 @@ async function loadMenu(forceRefresh = false) {
         const isSoldOut = item.status === 'sold_out';
         const badge = { available: 'badge-available', running_low: 'badge-running_low', sold_out: 'badge-sold_out' }[item.status];
         const dot = { available: 'status-dot-available', running_low: 'status-dot-running_low', sold_out: 'status-dot-sold_out' }[item.status];
-        html += '<div class="card p-4 ' + (isSoldOut ? 'opacity-60' : 'hover:shadow-md transition-shadow') + '">';
+        html += '<div class="menu-item-card card p-4 ' + (isSoldOut ? 'opacity-60' : 'hover:shadow-md transition-shadow') + '" data-search="' + escapeHtml(item.name + ' ' + (item.description || '')) + '">';
         html += '<div class="flex items-start justify-between mb-3">';
         html += '<div class="flex-1"><h4 class="font-bold text-gray-800">' + escapeHtml(item.name) + '</h4><p class="text-xs text-gray-500 mt-0.5 line-clamp-2">' + escapeHtml(item.description || '') + '</p></div>';
         html += '<span class="ml-2 text-xs px-2 py-1 rounded-full font-medium ' + badge + ' flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(item.availability_badge) + '</span>';
@@ -616,10 +624,20 @@ async function loadMenu(forceRefresh = false) {
       html += '</div></div>';
     }
     document.getElementById('menu-container').innerHTML = html || '<p class="text-gray-400 text-center py-8">No items available</p>';
+    if (document.getElementById('menu-search-input')?.value) { filterMenuItems(); }
   } catch(e) {
     console.error('loadMenu error:', e);
     document.getElementById('menu-container').innerHTML = '<div class="flex flex-col items-center justify-center py-16 text-center"><i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i><p class="text-gray-600 font-medium">Failed to load menu</p><p class="text-sm text-gray-400 mb-4">Please check your connection and try again</p><button onclick="loadMenu()" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm"><i class="fas fa-redo mr-2"></i>Retry</button></div>';
   }
+}
+
+function filterMenuItems() {
+  const query = (document.getElementById('menu-search-input')?.value || '').toLowerCase().trim();
+  const cards = document.querySelectorAll('.menu-item-card');
+  cards.forEach(card => {
+    const text = (card.getAttribute('data-search') || '').toLowerCase();
+    card.style.display = (!query || text.includes(query)) ? '' : 'none';
+  });
 }
 
 function changeQty(itemId, delta) {
