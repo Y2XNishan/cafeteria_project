@@ -815,7 +815,13 @@ async function loadMyOrders() {
       '<span><i class="fas fa-clock text-blue-400 mr-1"></i>Pickup: <b>' + escapeHtml(formatPickupSlot(o.pickup_slot)) + '</b></span>' +
       '<span class="font-bold text-blue-600">&#x20B9; ' + (o.total_amount || 0).toFixed(2) + '</span></div></div>'
     ).join('');
-    document.getElementById('my-orders-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-receipt text-4xl mb-3"></i><p>No orders yet</p></div>';
+    const emptyState = '<div class="card p-12 text-center text-gray-400 max-w-md mx-auto">' +
+      '<div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl"><i class="fas fa-receipt"></i></div>' +
+      '<h4 class="font-bold text-gray-700 text-lg mb-1">No Orders Yet</h4>' +
+      '<p class="text-sm text-gray-500 mb-5">Hungry? Explore today\'s freshly prepared meals and place your pre-order.</p>' +
+      '<button onclick="showSection(\'order\')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-all shadow-md"><i class="fas fa-utensils mr-2"></i>Browse Menu</button>' +
+      '</div>';
+    document.getElementById('my-orders-list').innerHTML = html || emptyState;
   } catch(e) { console.error(e); }
 }
 
