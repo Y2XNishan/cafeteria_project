@@ -173,8 +173,14 @@ forecast.get('/predict', async (c) => {
 // Get stored forecasts for kitchen display
 forecast.get('/stored', async (c) => {
   try {
-    const timeSlot = c.req.query('slot') || 'lunch'
-    const dateStr = c.req.query('date') || new Date().toISOString().split('T')[0]
+    const validSlots = ['breakfast', 'lunch', 'snacks', 'dinner']
+    const rawSlot = (c.req.query('slot') || 'lunch').toLowerCase()
+    const timeSlot = validSlots.includes(rawSlot) ? rawSlot : 'lunch'
+
+    const queryDate = c.req.query('date')
+    const dateStr = (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate))
+      ? queryDate
+      : new Date().toISOString().split('T')[0]
 
     const { results } = await c.env.DB.prepare(`
       SELECT df.*, mi.name as item_name, mi.daily_capacity,
