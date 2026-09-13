@@ -56,9 +56,10 @@ notifications.patch('/:id/read', async (c) => {
 notifications.patch('/user/:userId/read-all', async (c) => {
   try {
     const userId = parseInt(c.req.param('userId'))
-    if (isNaN(userId)) return c.json({ error: 'Invalid user ID' }, 400)
-    await c.env.DB.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').bind(userId).run()
-    return c.json({ success: true, message: 'All notifications marked as read' })
+    if (isNaN(userId) || userId <= 0) return c.json({ error: 'Invalid user ID' }, 400)
+    const result = await c.env.DB.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0').bind(userId).run()
+    const updatedCount = result.meta.changes || 0
+    return c.json({ success: true, updatedCount, message: `Marked ${updatedCount} notification(s) as read` })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
@@ -68,7 +69,9 @@ notifications.patch('/user/:userId/read-all', async (c) => {
 notifications.delete('/:id', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
-    if (isNaN(id)) return c.json({ error: 'Invalid notification ID' }, 400)
+    if (isNaN(id) || id <= 0) return c.json({ error: 'Invalid notification ID' }, 400)
+    const existing = await c.env.DB.prepare('SELECT id FROM notifications WHERE id = ?').bind(id).first()
+    if (!existing) return c.json({ error: 'Notification not found' }, 404)
     await c.env.DB.prepare('DELETE FROM notifications WHERE id = ?').bind(id).run()
     return c.json({ success: true, message: 'Notification deleted' })
   } catch (e: any) {
