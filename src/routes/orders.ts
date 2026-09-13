@@ -2,6 +2,7 @@
 // Orders Routes
 // ================================================
 import { Hono } from 'hono'
+import { isValidStatusTransition, getTransitionErrorMessage } from '../lib/orderState'
 
 type Bindings = { DB: D1Database }
 
@@ -280,6 +281,10 @@ orders.patch('/:id/status', async (c) => {
     ).bind(id).first<any>()
 
     if (!existingOrder) return c.json({ error: 'Order not found' }, 404)
+
+    if (!isValidStatusTransition(existingOrder.status, status)) {
+      return c.json({ error: getTransitionErrorMessage(existingOrder.status, status) }, 400)
+    }
 
     // If cancelling an active order, restore inventory
     if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
