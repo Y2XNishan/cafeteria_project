@@ -181,6 +181,11 @@ menu.post('/', async (c) => {
     if (isNaN(parsedCatId) || parsedCatId <= 0) {
       return c.json({ error: 'Valid category is required' }, 400)
     }
+
+    const categoryExists = await c.env.DB.prepare('SELECT id FROM categories WHERE id = ?').bind(parsedCatId).first()
+    if (!categoryExists) {
+      return c.json({ error: `Category #${parsedCatId} does not exist` }, 404)
+    }
     const prepMins = Math.min(120, Math.max(1, parseInt(preparationTime) || 5))
     const cap = Math.min(1000, Math.max(1, parseInt(dailyCapacity) || 50))
 
