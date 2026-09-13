@@ -11,8 +11,17 @@ const queue = new Hono<{ Bindings: Bindings }>()
 // Get current queue status for a time slot
 queue.get('/status', async (c) => {
   try {
-    const timeSlot = c.req.query('slot') || 'lunch'
-    const today = new Date().toISOString().split('T')[0]
+    const validSlots = ['breakfast', 'lunch', 'snacks', 'dinner']
+    const rawSlot = (c.req.query('slot') || 'lunch').toLowerCase()
+    const timeSlot = validSlots.includes(rawSlot) ? rawSlot : 'lunch'
+
+    const queryDate = c.req.query('date')
+    const today = (queryDate && /^\d{4}-\d{2}-\d{2}$/.test(queryDate))
+      ? queryDate
+      : new Date().toISOString().split('T')[0]
+
+    const rawLimit = parseInt(c.req.query('limit') || '50')
+    const limit = isNaN(rawLimit) ? 50 : Math.min(100, Math.max(1, rawLimit))
 
     const startOfDay = `${today} 00:00:00`
     const endOfDay = `${today} 23:59:59`
@@ -44,8 +53,9 @@ queue.get('/status', async (c) => {
       `).bind(timeSlot, startOfDay, endOfDay, today).first<any>()
     ])
 
-    const entries = entriesRes.results || []
-    const queueLength = entries.length
+    const allEntries = entriesRes.results || []
+    const queueLength = allEntries.length
+    const entries = allEntries.slice(0, limit)
     const avgPrep = avgPrepTime?.avg_prep ?? 6
     const optimization = optimizeQueue(queueLength, avgPrep, 15, 20, new Date())
 
