@@ -1404,6 +1404,7 @@ function adminDashboardHTML(): string {
                 <option value="breakfast">Breakfast</option>
                 <option value="dinner">Dinner</option>
               </select>
+              <button onclick="exportOrdersCSV()" class="text-sm bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700 flex items-center gap-1"><i class="fas fa-file-csv mr-1"></i>Export CSV</button>
               <button onclick="loadOrdersAdmin()" class="text-sm bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
             </div>
           </div>
@@ -1656,6 +1657,36 @@ async function loadForecastSummary() {
 }
 
 let loadOrdersSeq = 0;
+let lastAdminOrders = [];
+
+function exportOrdersCSV() {
+  if (!lastAdminOrders || !lastAdminOrders.length) {
+    alert('No orders available to export.');
+    return;
+  }
+  const headers = ['Order Number', 'Customer Name', 'Student ID', 'Items', 'Pickup Slot', 'Total Amount', 'Status', 'Order Time'];
+  const rows = lastAdminOrders.map(function(o) {
+    return [
+      '"' + (o.order_number || '') + '"',
+      '"' + (o.user_name || '').replace(/"/g, '""') + '"',
+      '"' + (o.student_id || '') + '"',
+      '"' + (o.items_summary || '').replace(/"/g, '""') + '"',
+      '"' + (o.pickup_slot || '') + '"',
+      (o.total_amount || 0).toFixed(2),
+      '"' + (o.status || '') + '"',
+      '"' + new Date(o.created_at).toISOString() + '"'
+    ];
+  });
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(',')].concat(rows.map(function(r) { return r.join(','); })).join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', 'orders_' + new Date().toISOString().split('T')[0] + '.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 async function loadOrdersAdmin() {
   const currentSeq = ++loadOrdersSeq;
   const slot = document.getElementById('order-slot-filter')?.value || 'lunch';
@@ -1665,6 +1696,7 @@ async function loadOrdersAdmin() {
     const res = await authFetch('/api/orders/active/all?slot=' + slot);
     const data = await res.json();
     if (currentSeq !== loadOrdersSeq) return;
+    lastAdminOrders = data.orders || [];
     const statusColors = { completed: 'bg-green-100 text-green-700', ready: 'bg-emerald-100 text-emerald-700', preparing: 'bg-yellow-100 text-yellow-700', confirmed: 'bg-blue-100 text-blue-700', pending: 'bg-gray-100 text-gray-600', cancelled: 'bg-red-100 text-red-600' };
     let html = '';
     for (const o of (data.orders||[])) {
