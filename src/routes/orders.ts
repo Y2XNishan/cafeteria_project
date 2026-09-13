@@ -80,7 +80,14 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
         return c.json({ error: `Price for "${mi.name}" has changed to ₹${mi.price.toFixed(2)}. Please refresh your cart.` }, 400)
       }
 
-      const qty = Math.max(1, parseInt(item.quantity) || 1)
+      const rawQty = parseInt(item.quantity)
+      if (isNaN(rawQty) || rawQty <= 0) {
+        return c.json({ error: `Invalid quantity for "${mi.name}"` }, 400)
+      }
+      if (rawQty > 10) {
+        return c.json({ error: `Maximum 10 portions of "${mi.name}" allowed per order` }, 400)
+      }
+      const qty = rawQty
 
       // Retrieve or initialize daily availability
       let avail = await c.env.DB.prepare(
