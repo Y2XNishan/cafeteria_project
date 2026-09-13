@@ -508,6 +508,18 @@ function formatPickupSlot(slot) {
   };
   return to12h(parts[0]) + ' - ' + to12h(parts[1]);
 }
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return diffMin + 'm ago';
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return diffHours + 'h ago';
+  return d.toLocaleDateString();
+}
 function authFetch(url, options) {
   const token = sessionStorage.getItem('token') || '';
   const opts = options || {};
@@ -824,7 +836,7 @@ async function loadNotifications() {
       '<i class="fas ' + (typeIcons[n.type] || 'fa-info text-blue-500') + '"></i></div>' +
       '<div class="flex-1"><p class="font-semibold text-gray-800 text-sm">' + escapeHtml(n.title) + '</p>' +
       '<p class="text-sm text-gray-500 mt-0.5">' + escapeHtml(n.message) + '</p>' +
-      '<p class="text-xs text-gray-400 mt-1">' + escapeHtml(new Date(n.created_at).toLocaleString()) + '</p></div>' +
+      '<p class="text-xs text-gray-400 mt-1 flex items-center gap-1"><i class="far fa-clock"></i> ' + escapeHtml(timeAgo(n.created_at)) + '</p></div>' +
       '</div>'
     ).join('');
     document.getElementById('notif-list').innerHTML = html || '<div class="card p-8 text-center text-gray-400"><i class="fas fa-bell text-4xl mb-3"></i><p>No notifications</p></div>';
