@@ -1113,12 +1113,15 @@ async function loadOrders() {
             ? '<span class="text-xs px-1.5 py-0.5 rounded bg-yellow-900/60 text-yellow-300 font-mono" title="Waiting ' + elapsedMin + ' mins"><i class="fas fa-clock mr-1"></i>' + elapsedMin + 'm</span>'
             : '<span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono" title="Waiting ' + elapsedMin + ' mins"><i class="fas fa-clock mr-1"></i>' + elapsedMin + 'm</span>');
 
+      const notesHtml = o.notes ? '<div class="text-xs text-amber-300 bg-amber-950/40 border border-amber-800/60 rounded px-2 py-1 mb-2 flex items-start gap-1"><i class="fas fa-comment-dots mt-0.5 flex-shrink-0"></i><span>' + escapeHtml(o.notes) + '</span></div>' : '';
+
       return '<div class="order-ticket ' + escapeHtml(o.status) + ' p-3">' +
         '<div class="flex items-center justify-between mb-2">' +
         '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + escapeHtml(String(o.queue_position||'?')) + '</span>' +
         '<div><div class="flex items-center gap-2"><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p>' + elapsedBadge + '</div><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>' +
         '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + escapeHtml(o.status.toUpperCase()) + '</span></div>' +
         '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + escapeHtml(o.items_summary||'--') + '</p>' +
+        notesHtml +
         '<div class="flex items-center justify-between">' +
         '<span class="text-xs text-slate-500"><i class="fas fa-calendar-check mr-1"></i>' + escapeHtml(o.pickup_slot||'--') + '</span>' +
         '<div class="flex gap-1">' + actions + '</div></div></div>';
