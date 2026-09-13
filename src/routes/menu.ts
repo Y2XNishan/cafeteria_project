@@ -15,6 +15,22 @@ export interface MenuItemCreatePayload {
   dailyCapacity?: number
 }
 
+export interface MenuItemUpdatePayload {
+  name?: string
+  description?: string
+  price?: number
+  preparationTime?: number
+  dailyCapacity?: number
+  isActive?: number | boolean
+}
+
+export interface CategoryItem {
+  id: number
+  name: string
+  icon?: string
+  display_order?: number
+}
+
 const menu = new Hono<{ Bindings: Bindings }>()
 
 const SQL_INSERT_MENU_AVAILABILITY = `
