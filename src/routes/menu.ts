@@ -237,6 +237,7 @@ menu.patch('/:id/toggle', async (c) => {
 
     const newStatus = existing.is_active === 1 ? 0 : 1
     await c.env.DB.prepare('UPDATE menu_items SET is_active = ? WHERE id = ?').bind(newStatus, id).run()
+    clearAvailabilityCache()
 
     return c.json({
       success: true,
@@ -267,6 +268,8 @@ menu.post('/categories', async (c) => {
       'INSERT INTO categories (name, description, display_order, is_active) VALUES (?, ?, ?, 1)'
     ).bind(name.trim(), description || '', displayOrder || 0).run()
     const newId = result.meta.last_row_id || (result.meta as any).lastRowId
+    clearAvailabilityCache()
+
     return c.json({ success: true, id: newId, message: 'Category created' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
