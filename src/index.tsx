@@ -43,7 +43,7 @@ app.get('/api/health', (c) => {
   return c.json({ 
     status: 'ok', 
     system: 'Smart Cafeteria System',
-    version: '1.1.0',
+    version: '1.2.0',
     timestamp: new Date().toISOString() 
   })
 })
