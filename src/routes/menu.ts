@@ -209,7 +209,8 @@ menu.post('/', async (c) => {
     }
     const rawPrep = parseInt(preparationTime)
     const prepMins = isNaN(rawPrep) ? 5 : Math.min(180, Math.max(1, rawPrep))
-    const cap = Math.min(1000, Math.max(1, parseInt(dailyCapacity) || 50))
+    const rawCap = parseInt(dailyCapacity)
+    const cap = isNaN(rawCap) ? 50 : Math.min(1000, Math.max(5, rawCap))
 
     const result = await c.env.DB.prepare(`
       INSERT INTO menu_items (category_id, name, description, price, preparation_time_minutes, daily_capacity)
