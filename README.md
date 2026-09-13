@@ -80,11 +80,44 @@ webapp/
 │       └── notifications.ts # Notification system
 ├── tests/
 │   ├── auth.test.ts        # Auth unit tests
-│   ├── forecast.test.ts    # Forecast engine unit tests
-│   └── middleware.test.ts  # Middleware unit tests
+│   ├── forecast.test.ts    # Forecast engine & accuracy unit tests
+│   ├── menu.test.ts        # Menu validation & clamping unit tests
+│   ├── middleware.test.ts  # Middleware unit tests
+│   ├── notifications.test.ts # Notifications & relative time tests
+│   ├── orderState.test.ts  # Order state machine validator tests
+│   ├── orders.test.ts      # Orders API unit tests
+│   ├── perf.test.ts        # In-memory caching performance tests
+│   └── queue.test.ts       # Queue & operating hours tests
 ├── wrangler.jsonc          # Cloudflare configuration
 └── package.json
 ```
+
+---
+
+## 🔄 Order State Machine Workflow
+
+Orders follow a strict, deterministic lifecycle managed by `src/lib/orderState.ts`:
+
+```
+[ pending ] ──► [ confirmed ] ──► [ preparing ] ──► [ ready ] ──► [ completed ]
+     │               │                 │
+     ▼               ▼                 ▼
+[ cancelled ]   [ cancelled ]     [ cancelled ]
+```
+
+- **Terminal States**: `completed` and `cancelled` cannot transition to any other status.
+- **Cancellation Rule**: Allowed only from `pending`, `confirmed`, and `preparing` states.
+- **Inventory Protection**: If an active order is cancelled, sold stock is automatically restored to the menu inventory.
+
+---
+
+## 🛡️ Security & Input Validation Policies
+
+1. **Price Integrity**: All checkout prices are verified server-side against canonical database records; client price overrides are rejected.
+2. **Quantity Bounds**: Clamped to a maximum of 10 units per line item to prevent hoarding and kitchen overload.
+3. **Queue Stuffing Protection**: Clamped to a maximum of 3 concurrent active uncollected orders per student account.
+4. **Input Sanitization**: All order notes, user names, and menu items are sanitized to strip script tags and HTML injection vectors.
+5. **Parameter Clamping**: Query limits are strictly bounded (pagination 1–50, queue status 1–100, menu prices ₹1–₹5,000, prep times 1–180 mins).
 
 ---
 
@@ -98,5 +131,5 @@ npm run dev        # Local development server
 
 ---
 
-**Deployment Status**: ✅ Active  
+**Deployment Status**: ✅ Production Ready (v1.2.0)  
 **Last Updated**: September 2026
