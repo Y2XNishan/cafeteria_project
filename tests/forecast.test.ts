@@ -4,6 +4,7 @@ import {
   detectTrend,
   forecastDemand,
   getAvailabilityStatus,
+  calculateForecastAccuracy,
 } from '../src/lib/forecast'
 
 describe('Demand Forecast Engine', () => {
@@ -62,6 +63,31 @@ describe('Demand Forecast Engine', () => {
 
     it('returns available when stock is plentiful', () => {
       expect(getAvailabilityStatus(40, 50)).toBe('available')
+    })
+  })
+
+  describe('calculateForecastAccuracy', () => {
+    it('handles division-by-zero gracefully when predicted and actual are zero', () => {
+      expect(calculateForecastAccuracy(0, 0)).toBe(100)
+    })
+
+    it('returns 100% when predicted equals actual sold', () => {
+      expect(calculateForecastAccuracy(45, 45)).toBe(100)
+    })
+
+    it('returns expected accuracy for moderate discrepancies', () => {
+      // 50 vs 40: error = 10 / 50 = 0.2 -> 80%
+      expect(calculateForecastAccuracy(50, 40)).toBe(80)
+    })
+
+    it('clamps negative accuracy scores to 0', () => {
+      // 10 vs 100: error = 90 / 100 = 0.9 -> 10%
+      expect(calculateForecastAccuracy(10, 100)).toBe(10)
+    })
+
+    it('returns null when actual sold is null or undefined', () => {
+      expect(calculateForecastAccuracy(50, null)).toBeNull()
+      expect(calculateForecastAccuracy(50, undefined)).toBeNull()
     })
   })
 })
