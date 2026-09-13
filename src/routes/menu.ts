@@ -128,21 +128,36 @@ menu.get('/:id', async (c) => {
 menu.put('/:id/availability', async (c) => {
   try {
     const id = parseInt(c.req.param('id'))
+    if (isNaN(id) || id <= 0) return c.json({ error: 'Invalid menu item ID' }, 400)
+
+    const item = await c.env.DB.prepare('SELECT id, daily_capacity FROM menu_items WHERE id = ?').bind(id).first<any>()
+    if (!item) return c.json({ error: 'Menu item not found' }, 404)
+
     const { date, timeSlot, quantitySold, quantityPrepared } = await c.req.json()
     const today = date || new Date().toISOString().split('T')[0]
     const slot = timeSlot || 'lunch'
+    const validSlots = ['breakfast', 'lunch', 'dinner']
+    if (!validSlots.includes(slot)) {
+      return c.json({ error: 'Invalid slot parameter. Must be breakfast, lunch, or dinner' }, 400)
+    }
+
+    if (quantitySold !== undefined && (isNaN(parseInt(quantitySold)) || parseInt(quantitySold) < 0)) {
+      return c.json({ error: 'quantitySold must be a non-negative integer' }, 400)
+    }
+    if (quantityPrepared !== undefined && (isNaN(parseInt(quantityPrepared)) || parseInt(quantityPrepared) < 0)) {
+      return c.json({ error: 'quantityPrepared must be a non-negative integer' }, 400)
+    }
 
     // Get existing record
     const existing = await c.env.DB.prepare(
       'SELECT * FROM menu_availability WHERE menu_item_id = ? AND date = ? AND time_slot = ?'
     ).bind(id, today, slot).first<any>()
 
-    const newSold = quantitySold ?? existing?.quantity_sold ?? 0
-    const newPrepared = quantityPrepared ?? existing?.quantity_prepared ?? 0
+    const newSold = quantitySold !== undefined ? parseInt(quantitySold) : (existing?.quantity_sold ?? 0)
+    const newPrepared = quantityPrepared !== undefined ? parseInt(quantityPrepared) : (existing?.quantity_prepared ?? 0)
     const remaining = Math.max(0, newPrepared - newSold)
 
-    const item = await c.env.DB.prepare('SELECT daily_capacity FROM menu_items WHERE id = ?').bind(id).first<any>()
-    const status = getAvailabilityStatus(remaining, newPrepared || item?.daily_capacity || 50)
+    const status = getAvailabilityStatus(remaining, newPrepared || item.daily_capacity || 50)
 
     await c.env.DB.prepare(`
       INSERT INTO menu_availability (menu_item_id, date, time_slot, quantity_prepared, quantity_sold, quantity_remaining, status)
