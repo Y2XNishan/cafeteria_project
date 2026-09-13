@@ -1106,10 +1106,17 @@ async function loadOrders() {
       else if (o.status === 'preparing') actions = '<button onclick="updateStatus(' + o.id + ',\'ready\',this)" class="status-btn bg-green-900 text-green-300 hover:bg-green-800"><i class="fas fa-bell mr-1"></i>Ready</button>';
       else if (o.status === 'ready') actions = '<button onclick="updateStatus(' + o.id + ',\'completed\',this)" class="status-btn bg-slate-700 text-slate-300 hover:bg-slate-600"><i class="fas fa-check mr-1"></i>Done</button>';
 
+      const elapsedMin = o.created_at ? Math.max(0, Math.floor((Date.now() - new Date(o.created_at).getTime()) / 60000)) : 0;
+      const elapsedBadge = elapsedMin > 20
+        ? '<span class="text-xs px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 font-mono" title="Waiting ' + elapsedMin + ' mins"><i class="fas fa-exclamation-circle mr-1"></i>' + elapsedMin + 'm</span>'
+        : (elapsedMin > 10
+            ? '<span class="text-xs px-1.5 py-0.5 rounded bg-yellow-900/60 text-yellow-300 font-mono" title="Waiting ' + elapsedMin + ' mins"><i class="fas fa-clock mr-1"></i>' + elapsedMin + 'm</span>'
+            : '<span class="text-xs px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono" title="Waiting ' + elapsedMin + ' mins"><i class="fas fa-clock mr-1"></i>' + elapsedMin + 'm</span>');
+
       return '<div class="order-ticket ' + escapeHtml(o.status) + ' p-3">' +
         '<div class="flex items-center justify-between mb-2">' +
         '<div class="flex items-center gap-2"><span class="w-7 h-7 bg-blue-800 text-blue-300 rounded-full flex items-center justify-center text-xs font-bold">' + escapeHtml(String(o.queue_position||'?')) + '</span>' +
-        '<div><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>' +
+        '<div><div class="flex items-center gap-2"><p class="font-semibold text-white text-sm">' + escapeHtml(o.order_number) + '</p>' + elapsedBadge + '</div><p class="text-xs text-slate-400">' + escapeHtml(o.user_name) + (o.student_id ? ' &middot; ' + escapeHtml(o.student_id) : '') + '</p></div></div>' +
         '<span class="text-xs font-bold ' + (statusColors[o.status]||'text-slate-400') + '">' + escapeHtml(o.status.toUpperCase()) + '</span></div>' +
         '<p class="text-xs text-slate-400 mb-2"><i class="fas fa-utensils mr-1"></i>' + escapeHtml(o.items_summary||'--') + '</p>' +
         '<div class="flex items-center justify-between">' +
