@@ -6,9 +6,32 @@ import { isValidStatusTransition, getTransitionErrorMessage } from '../lib/order
 
 type Bindings = { DB: D1Database }
 
+export type TimeSlot = 'breakfast' | 'lunch' | 'dinner'
+
 export interface OrderItemRequest {
   menuItemId: number
   quantity: number
+  price?: number
+}
+
+export interface CreateOrderPayload {
+  userId: number
+  timeSlot: TimeSlot
+  items: OrderItemRequest[]
+  notes?: string
+}
+
+export interface OrderRecord {
+  id: number
+  userId: number
+  orderNumber: string
+  status: string
+  timeSlot: TimeSlot
+  pickupSlot: string
+  estimatedWaitMinutes: number
+  totalAmount: number
+  notes?: string
+  createdAt: string
 }
 
 const orders = new Hono<{ Bindings: Bindings }>()
