@@ -633,9 +633,17 @@ async function loadMenu(forceRefresh = false) {
         const isSoldOut = item.status === 'sold_out';
         const badge = { available: 'badge-available', running_low: 'badge-running_low', sold_out: 'badge-sold_out' }[item.status];
         const dot = { available: 'status-dot-available', running_low: 'status-dot-running_low', sold_out: 'status-dot-sold_out' }[item.status];
+        const foodIcons = { 1: 'fa-bowl-food', 2: 'fa-cookie-bite', 3: 'fa-mug-hot', 4: 'fa-ice-cream', 5: 'fa-egg' };
+        const iconClass = foodIcons[cat.id] || 'fa-utensils';
+        const imgPlaceholder = '<div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm flex-shrink-0 mr-2.5">' +
+          (item.image_url
+            ? '<img src="' + escapeHtml(item.image_url) + '" alt="' + escapeHtml(item.name) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\';" class="w-full h-full object-cover rounded-xl" /><i class="fas ' + iconClass + ' hidden"></i>'
+            : '<i class="fas ' + iconClass + '"></i>') +
+          '</div>';
+
         html += '<div class="menu-item-card card p-4 ' + (isSoldOut ? 'opacity-60' : 'hover:shadow-md transition-shadow') + '" data-search="' + escapeHtml(item.name + ' ' + (item.description || '')) + '">';
         html += '<div class="flex items-start justify-between mb-3">';
-        html += '<div class="flex-1"><h4 class="font-bold text-gray-800">' + escapeHtml(item.name) + '</h4><p class="text-xs text-gray-500 mt-0.5 line-clamp-2">' + escapeHtml(item.description || '') + '</p></div>';
+        html += '<div class="flex items-start flex-1 min-w-0">' + imgPlaceholder + '<div class="flex-1 min-w-0"><h4 class="font-bold text-gray-800 truncate">' + escapeHtml(item.name) + '</h4><p class="text-xs text-gray-500 mt-0.5 line-clamp-2">' + escapeHtml(item.description || '') + '</p></div></div>';
         html += '<span class="ml-2 text-xs px-2 py-1 rounded-full font-medium ' + badge + ' flex items-center gap-1 flex-shrink-0"><span class="w-1.5 h-1.5 rounded-full ' + dot + '"></span>' + escapeHtml(item.availability_badge) + '</span>';
         html += '</div>';
         html += '<div class="flex items-center justify-between">';
