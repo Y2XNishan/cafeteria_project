@@ -53,6 +53,9 @@ orders.post('/', async (c) => {
       return c.json({ error: 'Invalid request payload' }, 400)
     }
     const { userId, timeSlot, items, notes } = body
+    const sanitizedNotes = typeof notes === 'string'
+      ? notes.trim().slice(0, 250).replace(/<[^>]*>?/gm, '')
+      : null
     if (!userId || !timeSlot || !Array.isArray(items) || items.length === 0) {
       return c.json({ error: 'userId, timeSlot and items array are required' }, 400)
     }
@@ -122,7 +125,7 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
     const orderResult = await c.env.DB.prepare(`
       INSERT INTO orders (user_id, order_number, status, time_slot, pickup_slot, estimated_wait_minutes, total_amount, notes, created_at)
       VALUES (?, ?, 'confirmed', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(userId, orderNumber, timeSlot, pickupSlot, estimatedWait, totalAmount, notes || null).run()
+    `).bind(userId, orderNumber, timeSlot, pickupSlot, estimatedWait, totalAmount, sanitizedNotes || null).run()
     
     const orderId = orderResult.meta.last_row_id as number
 
