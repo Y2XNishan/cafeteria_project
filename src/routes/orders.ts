@@ -69,6 +69,14 @@ orders.post('/', async (c) => {
       return c.json({ error: 'User account not found' }, 404)
     }
 
+    const activeOrdersCount = await c.env.DB.prepare(
+      "SELECT COUNT(*) as count FROM orders WHERE user_id = ? AND status IN ('confirmed', 'preparing', 'ready')"
+    ).bind(parsedUserId).first<any>()
+
+    if ((activeOrdersCount?.count ?? 0) >= 3) {
+      return c.json({ error: 'You have 3 active orders pending collection. Please collect existing orders before placing a new one.' }, 400)
+    }
+
     const validSlots = ['breakfast', 'lunch', 'dinner']
     if (!validSlots.includes(timeSlot)) {
       return c.json({ error: 'Invalid timeSlot. Must be breakfast, lunch, or dinner' }, 400)
