@@ -226,7 +226,7 @@ orders.get('/user/:userId', async (c) => {
   try {
     const userId = parseInt(c.req.param('userId'))
     if (isNaN(userId)) return c.json({ error: 'Invalid user ID' }, 400)
-    const limit = Math.max(1, Math.min(100, parseInt(c.req.query('limit') || '10') || 10))
+    const limit = Math.max(1, Math.min(50, parseInt(c.req.query('limit') || '10') || 10))
     const { results } = await c.env.DB.prepare(`
       SELECT o.*, GROUP_CONCAT(mi.name || ' x' || oi.quantity, ', ') as items_summary
       FROM orders o
