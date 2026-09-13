@@ -239,11 +239,24 @@ forecast.get('/weekly', async (c) => {
   }
 })
 
+// In-memory cache for top items analytics (30s TTL)
+let topItemsCache: { data: any[]; cachedAt: number; limit: number } | null = null
+
+export function clearTopItemsCache() {
+  topItemsCache = null
+}
+
 // Top items analytics
 forecast.get('/top-items', async (c) => {
   try {
     const rawLimit = parseInt(c.req.query('limit') || '5')
     const limit = isNaN(rawLimit) ? 5 : Math.min(50, Math.max(1, rawLimit))
+
+    const now = Date.now()
+    if (topItemsCache && topItemsCache.limit === limit && (now - topItemsCache.cachedAt < 30000)) {
+      return c.json({ topItems: topItemsCache.data, cached: true })
+    }
+
     const { results } = await c.env.DB.prepare(`
       SELECT mi.name, mi.price,
              COALESCE(SUM(oi.quantity), 0) as total_sold,
@@ -257,7 +270,9 @@ forecast.get('/top-items', async (c) => {
       ORDER BY total_sold DESC
       LIMIT ?
     `).bind(limit).all()
-    return c.json({ topItems: results })
+
+    topItemsCache = { data: results, cachedAt: now, limit }
+    return c.json({ topItems: results, cached: false })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
