@@ -1820,13 +1820,19 @@ async function loadFullForecast() {
     const res = await authFetch('/api/forecast/predict?slot=' + slot);
     const data = await res.json();
     let html = '<table class="w-full text-sm"><thead><tr class="text-left text-xs text-gray-500 border-b">';
-    html += '<th class="pb-2">Item</th><th class="pb-2">Predicted</th><th class="pb-2">Actual</th><th class="pb-2">Trend</th><th class="pb-2">Confidence</th><th class="pb-2 max-w-xs">Recommendation</th></tr></thead><tbody>';
+    html += '<th class="pb-2">Item</th><th class="pb-2">Predicted</th><th class="pb-2">Actual</th><th class="pb-2">Trend</th><th class="pb-2">Confidence</th><th class="pb-2">Accuracy</th><th class="pb-2 max-w-xs">Recommendation</th></tr></thead><tbody>';
     for (const f of data.forecasts||[]) {
       const trendColor = { rising:'text-green-600', stable:'text-gray-500', falling:'text-red-500' }[f.trend] || 'text-gray-500';
+      let accuracyBadge = '<span class="text-xs text-gray-400">–</span>';
+      if (f.accuracy != null) {
+        const accColor = f.accuracy >= 80 ? 'bg-green-100 text-green-700' : (f.accuracy >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700');
+        accuracyBadge = '<span class="text-xs px-2 py-0.5 rounded-full font-semibold ' + accColor + '">' + escapeHtml(String(f.accuracy)) + '%</span>';
+      }
       html += '<tr class="table-row border-b"><td class="py-2 font-medium">' + escapeHtml(f.menuItemName) + '</td><td class="py-2 font-bold text-blue-600">' + escapeHtml(String(f.predictedQuantity)) + '</td>';
       html += '<td class="py-2">' + (f.actualSold != null ? escapeHtml(String(f.actualSold)) : '–') + '</td>';
       html += '<td class="py-2 ' + trendColor + ' font-medium">' + escapeHtml(f.trend) + '</td>';
       html += '<td class="py-2"><div class="flex items-center gap-1"><div class="flex-1 h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-blue-400 rounded-full" style="width:' + escapeHtml(String(f.confidencePct)) + '%"></div></div><span class="text-xs text-gray-500 ml-1">' + escapeHtml(String(f.confidencePct)) + '%</span></div></td>';
+      html += '<td class="py-2">' + accuracyBadge + '</td>';
       html += '<td class="py-2 text-xs text-gray-500 max-w-xs">' + (f.recommendation ? escapeHtml(f.recommendation) : '–') + '</td></tr>';
     }
     html += '</tbody></table>';
