@@ -76,6 +76,10 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
       const mi = await c.env.DB.prepare(SQL_SELECT_ACTIVE_MENU_ITEM).bind(item.menuItemId).first<any>()
       if (!mi) return c.json({ error: `Menu item #${item.menuItemId} not found or inactive` }, 400)
 
+      if (typeof item.price === 'number' && Math.abs(item.price - mi.price) > 0.01) {
+        return c.json({ error: `Price for "${mi.name}" has changed to ₹${mi.price.toFixed(2)}. Please refresh your cart.` }, 400)
+      }
+
       const qty = Math.max(1, parseInt(item.quantity) || 1)
 
       // Retrieve or initialize daily availability
