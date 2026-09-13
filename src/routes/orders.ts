@@ -208,7 +208,7 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
       // Trigger low stock surge alert if stock is critical
       if (newStatus === 'sold_out' || newStatus === 'running_low') {
         const existingStockAlert = await c.env.DB.prepare(
-          "SELECT id FROM surge_alerts WHERE menu_item_id = ? AND time_slot = ? AND date = ? AND alert_type = 'low_stock' AND is_resolved = 0"
+          "SELECT id FROM surge_alerts WHERE menu_item_id = ? AND time_slot = ? AND date = ? AND alert_type = 'low_stock' AND (is_resolved = 0 OR created_at >= datetime('now', '-15 minutes'))"
         ).bind(item.id, timeSlot, today).first()
         if (!existingStockAlert) {
           const alertMsg = newStatus === 'sold_out'
@@ -246,7 +246,7 @@ const SQL_SELECT_ACTIVE_MENU_ITEM = 'SELECT id, name, price, preparation_time_mi
     // Dynamic high queue surge alert trigger
     if (queuePos + 1 >= 8) {
       const existingAlert = await c.env.DB.prepare(
-        "SELECT id FROM surge_alerts WHERE time_slot = ? AND date = ? AND alert_type = 'high_queue' AND is_resolved = 0"
+        "SELECT id FROM surge_alerts WHERE time_slot = ? AND date = ? AND alert_type = 'high_queue' AND (is_resolved = 0 OR created_at >= datetime('now', '-15 minutes'))"
       ).bind(timeSlot, today).first()
       if (!existingAlert) {
         await c.env.DB.prepare(`
