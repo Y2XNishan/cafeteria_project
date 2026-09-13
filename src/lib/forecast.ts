@@ -222,3 +222,49 @@ export function getAvailabilityStatus(
   if (remainingPct <= lowStockThresholdPct) return 'running_low'
   return 'available'
 }
+
+/**
+ * Operating schedule detection helper
+ */
+export interface OperatingHoursInfo {
+  isOpen: boolean
+  currentSlot: 'breakfast' | 'lunch' | 'snacks' | 'dinner' | 'closed'
+  nextOpenSlot?: string
+  message: string
+}
+
+export function getOperatingHoursInfo(date: Date = new Date()): OperatingHoursInfo {
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const timeNum = hours * 60 + minutes
+
+  // 07:30 to 10:30 (450 to 630 mins)
+  if (timeNum >= 450 && timeNum < 630) {
+    return { isOpen: true, currentSlot: 'breakfast', message: 'Breakfast service is active' }
+  }
+  // 11:30 to 15:00 (690 to 900 mins)
+  if (timeNum >= 690 && timeNum < 900) {
+    return { isOpen: true, currentSlot: 'lunch', message: 'Lunch service is active' }
+  }
+  // 16:00 to 18:30 (960 to 1110 mins)
+  if (timeNum >= 960 && timeNum < 1110) {
+    return { isOpen: true, currentSlot: 'snacks', message: 'Evening snacks service is active' }
+  }
+  // 19:30 to 22:30 (1170 to 1350 mins)
+  if (timeNum >= 1170 && timeNum < 1350) {
+    return { isOpen: true, currentSlot: 'dinner', message: 'Dinner service is active' }
+  }
+
+  let nextOpenSlot = 'Breakfast (07:30)'
+  if (timeNum < 450) nextOpenSlot = 'Breakfast (07:30)'
+  else if (timeNum < 690) nextOpenSlot = 'Lunch (11:30)'
+  else if (timeNum < 960) nextOpenSlot = 'Snacks (16:00)'
+  else if (timeNum < 1170) nextOpenSlot = 'Dinner (19:30)'
+
+  return {
+    isOpen: false,
+    currentSlot: 'closed',
+    nextOpenSlot,
+    message: `Cafeteria is currently closed. Next service is ${nextOpenSlot}.`
+  }
+}
