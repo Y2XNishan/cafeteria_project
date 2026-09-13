@@ -207,7 +207,8 @@ menu.post('/', async (c) => {
     if (!categoryExists) {
       return c.json({ error: `Category #${parsedCatId} does not exist` }, 404)
     }
-    const prepMins = Math.min(120, Math.max(1, parseInt(preparationTime) || 5))
+    const rawPrep = parseInt(preparationTime)
+    const prepMins = isNaN(rawPrep) ? 5 : Math.min(180, Math.max(1, rawPrep))
     const cap = Math.min(1000, Math.max(1, parseInt(dailyCapacity) || 50))
 
     const result = await c.env.DB.prepare(`
