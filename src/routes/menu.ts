@@ -163,9 +163,16 @@ menu.post('/', async (c) => {
       return c.json({ error: 'Invalid request payload' }, 400)
     }
     const { categoryId, name, description, price, preparationTime, dailyCapacity } = body
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    if (!name || typeof name !== 'string') {
       return c.json({ error: 'Item name is required' }, 400)
     }
+    const sanitizedName = name.trim().slice(0, 100).replace(/<[^>]*>?/gm, '')
+    if (sanitizedName.length === 0) {
+      return c.json({ error: 'Item name cannot be empty or only HTML tags' }, 400)
+    }
+    const sanitizedDesc = typeof description === 'string'
+      ? description.trim().slice(0, 500).replace(/<[^>]*>?/gm, '')
+      : ''
     const parsedPrice = parseFloat(price)
     if (isNaN(parsedPrice) || parsedPrice <= 0 || parsedPrice > 10000) {
       return c.json({ error: 'Price must be between ₹0.01 and ₹10,000' }, 400)
@@ -180,7 +187,7 @@ menu.post('/', async (c) => {
     const result = await c.env.DB.prepare(`
       INSERT INTO menu_items (category_id, name, description, price, preparation_time_minutes, daily_capacity)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(parsedCatId, name.trim(), (description || '').trim(), parsedPrice, prepMins, cap).run()
+    `).bind(parsedCatId, sanitizedName, sanitizedDesc, parsedPrice, prepMins, cap).run()
 
     const newId = result.meta.last_row_id || (result.meta as any).lastRowId
 
